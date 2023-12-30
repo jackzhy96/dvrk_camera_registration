@@ -26,6 +26,8 @@ from scipy.spatial.transform import Rotation
 from camera import Camera
 import convex_hull
 import vision_tracking
+import crtk
+import dvrk
 
 
 class CameraRegistrationApplication:
@@ -33,21 +35,36 @@ class CameraRegistrationApplication:
         self.camera = camera
         self.marker_size = marker_size
         self.expected_interval = expected_interval
-        self.arm = psm.PSM(arm_name=arm_name, expected_interval=expected_interval)
+
+        ral = crtk.ral("dvrk_psm_test")
+        self.arm = psm.PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
+
+        # another arm
+        # self.arm = dvrk.psm(
+        #     ral=ral, arm_name=arm_name, expected_interval=expected_interval
+        # )
+        ral.check_connections()
+
+        print(f"measured_jp {self.arm.measured_jp()}")
+        print("connections checked")
 
     def setup(self):
         self.messages.info("Enabling {}...".format(self.arm.name))
         if not self.arm.enable(5):
-            self.messages.error("Failed to enable {} within 10 seconds".format(self.arm.name))
+            self.messages.error(
+                "Failed to enable {} within 10 seconds".format(self.arm.name)
+            )
             return False
 
         self.messages.info("Homing {}...".format(self.arm.name))
         if not self.arm.home(10):
-            self.messages.error("Failed to home {} within 10 seconds".format(self.arm.name))
+            self.messages.error(
+                "Failed to home {} within 10 seconds".format(self.arm.name)
+            )
             return False
 
         self.messages.info("Homing complete\n")
-        self.arm.jaw.close().wait()
+        # self.arm.jaw.close().wait()
 
         return True
 
@@ -89,13 +106,15 @@ class CameraRegistrationApplication:
             else:
                 break
 
-        self.messages.info("Range of motion displayed in plot, close plot window to continue")
+        self.messages.info(
+            "Range of motion displayed in plot, close plot window to continue"
+        )
         convex_hull.display_hull(hull)
         return self.ok, hull
 
     # Make sure target is visible and arm is within range of motion
     def ensure_target_visible(self, safe_range):
-        self.done = True # run first check immeditately
+        self.done = True  # run first check immeditately
         first_check = True
 
         while self.ok:
@@ -140,7 +159,7 @@ class CameraRegistrationApplication:
         target_poses = []
         robot_poses = []
 
-        self.arm.jaw.close()
+        # self.arm.jaw.close()
 
         def measure_pose(joint_pose):
             nonlocal target_poses
@@ -161,7 +180,8 @@ class CameraRegistrationApplication:
 
             pose = self.arm.local.measured_cp().Inverse()
             rotation_quaternion = Rotation.from_quat(pose.M.GetQuaternion())
-            rotation = np.float64(rotation_quaternion.as_matrix())
+            # rotation = np.float64(rotation_quaternion.as_matrix()) # added in scipy 1.4.0
+            rotation = np.float64(rotation_quaternion.as_dcm())
             translation = np.array([pose.p[0], pose.p[1], pose.p[2]], dtype=np.float64)
 
             robot_poses.append((rotation, np.array(translation)))
@@ -219,7 +239,7 @@ class CameraRegistrationApplication:
                         self.tracker.display_point(target_poses[-1][1], (255, 255, 0))
                         break
 
-                self.messages.progress((i+1)/len(sample_poses))
+                self.messages.progress((i + 1) / len(sample_poses))
 
         self.messages.line_break()
         self.messages.info("Determining limits of camera view...")
@@ -262,7 +282,9 @@ class CameraRegistrationApplication:
         )
 
         if error < 1e-4:
-            self.messages.info("Registration error ({:.3e}) is within normal range".format(error))
+            self.messages.info(
+                "Registration error ({:.3e}) is within normal range".format(error)
+            )
         else:
             self.messages.warn(
                 "WARNING: registration error ({:.3e}) is unusually high! Should generally be <0.00005".format(
@@ -330,7 +352,7 @@ class CameraRegistrationApplication:
             self.ok = self.ok and self.setup()
             if not self.ok:
                 return
-
+            print("finish setup")
             ok, safe_range = self.determine_safe_range_of_motion()
             if not self.ok or not ok:
                 return
@@ -345,7 +367,9 @@ class CameraRegistrationApplication:
 
             if len(data[0]) <= 10:
                 self.messages.error("Not enough pose data, cannot compute registration")
-                self.messages.error("Please try again, with more range of motion within camera view")
+                self.messages.error(
+                    "Please try again, with more range of motion within camera view"
+                )
                 return
 
             ok, rvec, tvec, g = self.compute_registration(*data)
@@ -365,7 +389,7 @@ class CameraRegistrationApplication:
 
 def main():
     # ros init node so we can use default ros arguments (e.g. __ns:= for namespace)
-    rospy.init_node("dvrk_camera_registration", anonymous=True)
+    # rospy.init_node("dvrk_camera_registration", anonymous=True)
     # strip ros arguments
     argv = rospy.myargv(argv=sys.argv)
 
@@ -390,7 +414,7 @@ def main():
         "-i",
         "--interval",
         type=float,
-        default=0.01,
+        default=0.1,
         help="expected interval in seconds between messages sent by the device",
     )
     parser.add_argument(

@@ -21,6 +21,7 @@ import camera
 import time
 from enum import Enum
 import collections
+from scipy.interpolate import interp1d
 
 
 class MessageManager:
@@ -125,7 +126,7 @@ class ArUcoTarget:
         #     fill_value="extrapolate",
         # )
 
-        self.refinement_window_interp = scipy.interpolate.interp1d(
+        self.refinement_window_interp = interp1d(
             [0.0, 100.0, 150.0, 200.0],
             [0.0, 6.0, 15.0, 20.0],
             kind="linear",

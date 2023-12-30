@@ -167,7 +167,9 @@ class Camera:
             T = np.matmul(np.matmul(r, camera_transform), t)
             transforms.append(T)
 
-        transform_magnitudes = np.array([np.linalg.norm(T - gripper_transform) for T in transforms])
+        transform_magnitudes = np.array(
+            [np.linalg.norm(T - gripper_transform) for T in transforms]
+        )
         stdev_error = np.std(transform_magnitudes)
 
         bad_measurements = 0
@@ -177,7 +179,7 @@ class Camera:
 
         print("Measurements with error exceeding 1 sigma: {}".format(bad_measurements))
 
-        return stdev_error, (rotation, translation), gripper_transform
+        return stdev_error, rotation, translation, gripper_transform
 
     def unregister(self):
         self.info_callback.unregister()
