@@ -2,13 +2,13 @@
 
   <!-- Set this to your camera's name -->
   <arg name="rig_name" default="jhu_daVinci"/>
-  <arg name="left_camera_name" default="$(arg rig_name)_left"/>
+  <arg name="left_camera_name" default="left"/>
   <arg name="left_cam_device" default="1"/>
-  <arg name="right_camera_name" default="$(arg rig_name)_right"/>
+  <arg name="right_camera_name" default="right"/>
   <arg name="right_cam_device" default="0"/>
 
   <!-- camera driver nodes -->
-  <include file="$(find dvrk_video)/launch/gscam_decklink.launch" ns="$(arg rig_name)/left">
+  <include file="$(find dvrk_video)/launch/gscam_decklink.launch" ns="$(arg rig_name)">
     <arg name="camera_name" value="$(arg left_camera_name)"/>
     <arg name="device" value="$(arg left_cam_device)"/>
     <arg name="crop_top" value="28"/>
@@ -18,7 +18,7 @@
     <arg name="camera_info_file" value="file:////home/jbarrag3/research_juan/hand_eye_collect/data_ros_calib/stereo_calib1/left.yaml"/>
   </include>
 
-  <include file="$(find dvrk_video)/launch/gscam_decklink.launch" ns="$(arg rig_name)/right">
+  <include file="$(find dvrk_video)/launch/gscam_decklink.launch" ns="$(arg rig_name)">
     <arg name="camera_name" value="$(arg right_camera_name)"/>
     <arg name="device" value="$(arg right_cam_device)"/>
     <arg name="crop_top" value="28"/>
@@ -32,13 +32,13 @@
   <node name="dvrk_$(arg left_camera_name)_view"
 	pkg="image_view"
 	type="image_view"
-	args="image:=/$(arg rig_name)/left/decklink/$(arg left_camera_name)/image_raw">
+	args="image:=/$(arg rig_name)/decklink/$(arg left_camera_name)/image_raw">
     <param name="autosize" value="True" />
   </node>
   <node name="dvrk_$(arg right_camera_name)_view"
 	pkg="image_view"
 	type="image_view"
-	args="image:=/$(arg rig_name)/right/decklink/$(arg right_camera_name)/image_raw">
+	args="image:=/$(arg rig_name)/decklink/$(arg right_camera_name)/image_raw">
     <param name="autosize" value="True" />
   </node>
 

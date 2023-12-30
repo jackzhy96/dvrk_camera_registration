@@ -26,5 +26,5 @@
     <remap from="decklink/image_raw" to="image_raw"/>
   </node>
 
-  <node name="decklink_transform" pkg="tf" type="static_transform_publisher" args="1 2 3 0 -3.141 0 /world /decklink_frame 10"/>
+  <node name="$(arg camera_name)_decklink_transform" pkg="tf" type="static_transform_publisher" args="1 2 3 0 -3.141 0 /world /decklink_frame 10"/>
 </launch>
