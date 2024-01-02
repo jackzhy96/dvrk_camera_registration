@@ -7,7 +7,7 @@ The following document describes how to setup features from the [ROS1 image pipe
 ## Step 1: print calibration checker board
 
 Print checker board from here: <https://github.com/Cartucho/dvrk_calib_hand_eye/blob/main/camera_calibration.md>.  This pattern has the following features:
-* square size: 4.80mm -> 0.00480
+* square size: 4.80mm -> 0.00480m
 * size: 22x17
 
 Check the printer has not scaled the checker board by measuring the square size. Other patterns can be used but the `square_size` and the `size` need when calling the calibration scripts.
@@ -31,8 +31,8 @@ After running the calibration GUI make sure to save the calibration parameters. 
   <summary>ROS camera calibration utils documentation</summary>
   
 * [Camera calibration in ros](https://wiki.ros.org/camera_calibration)
-* [monocular calibration](https://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration)
-* [stereo calibration](https://wiki.ros.org/camera_calibration/Tutorials/StereoCalibration)
+* [Monocular calibration](https://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration)
+* [Stereo calibration](https://wiki.ros.org/camera_calibration/Tutorials/StereoCalibration)
 </details>
 
 
@@ -71,8 +71,8 @@ rosrun image_view image_view image:=/jhu_daVinci/decklink/left/image_rect_color
 <details>
   <summary>Image processing documentation</summary>
 
-* [monocular image proc](https://wiki.ros.org/image_proc)
-* [stereoimage proc](https://wiki.ros.org/stereo_image_proc)
+* [Monocular image proc](https://wiki.ros.org/image_proc)
+* [Stereo image proc](https://wiki.ros.org/stereo_image_proc)
 
 </details>
 
