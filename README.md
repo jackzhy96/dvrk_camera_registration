@@ -11,6 +11,11 @@ To perform the hand-eye calibration first attach the calibration aruco marker (T
 
 After collecting the data, the script will generate a .json file with the transformation between the camera PSM and the camera.
 
+Example arguments
+```bash
+python camera_registration.py  -a PSM2 -m 0.01  -c /jhu_daVinci/decklink/left/image_rect_color  -t /jhu_daVinci/decklink/left/camera_info
+```
+
 
 ## Trouble shooting. 
 
