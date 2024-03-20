@@ -180,8 +180,7 @@ class CameraRegistrationApplication:
 
             pose = self.arm.local.measured_cp().Inverse()
             rotation_quaternion = Rotation.from_quat(pose.M.GetQuaternion())
-            # rotation = np.float64(rotation_quaternion.as_matrix()) # added in scipy 1.4.0
-            rotation = np.float64(rotation_quaternion.as_dcm())
+            rotation = np.float64(rotation_quaternion.as_matrix())
             translation = np.array([pose.p[0], pose.p[1], pose.p[2]], dtype=np.float64)
 
             robot_poses.append((rotation, np.array(translation)))
@@ -277,7 +276,7 @@ class CameraRegistrationApplication:
         return robot_poses, target_poses
 
     def compute_registration(self, robot_poses, target_poses):
-        error, rotation, translation, gripper = self.camera.calibrate_pose(
+        error, rotation, translation = self.camera.calibrate_pose(
             robot_poses, target_poses
         )
 
@@ -297,10 +296,10 @@ class CameraRegistrationApplication:
             "Measured distance from RCM to camera origin: {:.3f} m\n".format(distance)
         )
 
-        return self.ok, rotation, translation, gripper
+        return self.ok, rotation, translation
 
     def save_registration(self, rotation, translation, file_name):
-        rotation = rotation.T
+        rotation = np.linalg.inv(rotation)
         translation = -np.matmul(rotation, translation)
 
         transform = np.eye(4)
@@ -372,7 +371,7 @@ class CameraRegistrationApplication:
                 )
                 return
 
-            ok, rvec, tvec, g = self.compute_registration(*data)
+            ok, rvec, tvec = self.compute_registration(*data)
             if not ok:
                 return
 

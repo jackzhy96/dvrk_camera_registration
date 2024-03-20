@@ -125,29 +125,18 @@ class Camera:
 
         return ok, reprojection_error, rotation, translation
 
-    # robot_poses should be (R, t) to transform points in base frame to gripper frame
-    # target_poses should be (R, t) to transform points in target frame to camera frame
+    # TODO
     def calibrate_pose(self, robot_poses, target_poses):
         robot_poses_r = np.array([p[0] for p in robot_poses], dtype=np.float64)
         robot_poses_t = np.array([p[1] for p in robot_poses], dtype=np.float64)
         target_poses_r = np.array([p[0] for p in target_poses], dtype=np.float64)
         target_poses_t = np.array([p[1] for p in target_poses], dtype=np.float64)
 
-        # transform points in camera frame to robot base frame
         rotation, translation = cv2.calibrateHandEye(
             robot_poses_r,
             robot_poses_t,
             target_poses_r,
             target_poses_t,
-            method=cv2.CALIB_HAND_EYE_HORAUD,
-        )
-
-        # transform points in gripper frame to target frame
-        rotation_g, translation_g = cv2.calibrateHandEye(
-            target_poses_r,
-            target_poses_t,
-            robot_poses_r,
-            robot_poses_t,
             method=cv2.CALIB_HAND_EYE_HORAUD,
         )
 
@@ -160,26 +149,17 @@ class Camera:
         robot_transforms = [to_homogenous(r, t) for r, t in robot_poses]
         target_transforms = [to_homogenous(r, t) for r, t in target_poses]
         camera_transform = to_homogenous(rotation, translation)
-        gripper_transform = np.linalg.inv(to_homogenous(rotation_g, translation_g))
 
         transforms = []
         for r, t in zip(robot_transforms, target_transforms):
-            T = np.matmul(np.matmul(r, camera_transform), t)
-            transforms.append(T)
+            a = np.matmul(np.matmul(r, camera_transform), t)
+            transforms.append(np.linalg.norm(a, ord="fro"))
 
-        transform_magnitudes = np.array(
-            [np.linalg.norm(T - gripper_transform) for T in transforms]
-        )
-        stdev_error = np.std(transform_magnitudes)
+        transforms = np.array(transforms)
 
-        bad_measurements = 0
-        for i in range(len(transforms)):
-            if transform_magnitudes[i] > stdev_error:
-                bad_measurements += 1
+        error = np.std(transforms - np.mean(transforms))
 
-        print("Measurements with error exceeding 1 sigma: {}".format(bad_measurements))
-
-        return stdev_error, rotation, translation, gripper_transform
+        return error, rotation, translation
 
     def unregister(self):
         self.info_callback.unregister()
