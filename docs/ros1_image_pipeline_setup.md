@@ -22,10 +22,15 @@ rosrun camera_calibration cameracalibrator.py --size 22x17 --square 0.0048 image
 
 Stereo calibration (Camera pair)
 ```bash
-rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 22x17 --square 0.0048 right:=/jhu_daVinci/right/decklink/jhu_daVinci_right/image_raw left:=/jhu_daVinci/left/decklink/jhu_daVinci_left/image_raw right_camera:=/my_stereo/right left_camera:=/my_stereo/left --no-service-check
+rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 22x17 --square 0.0048 right:=/jhu_daVinci/decklink/right/image_raw left:=/jhu_daVinci/decklink/left/image_raw right_camera:=/my_stereo/right left_camera:=/my_stereo/left --no-service-check
 ```
 
 After running the calibration GUI make sure to save the calibration parameters. The application will create a compressed file with the pictures used for calibration and a `yaml` file with the actual parameters. 
+
+### Checking the calibration's quality
+After generating the camera parameters, hold the calibration board in front of the camera again to see the epipolar error. According to [ROS documentation][epipolar_error] this error should be ideally below 0.1 pixels. The best error I was able to obtained with an old dVRK endoscope was around 1.3 pixels. Handeye calibration is very sensitive to bad calibrations.
+
+[epipolar_error]: <https://wiki.ros.org/camera_calibration/Tutorials/StereoCalibration#:~:text=Typically%2C%20an%20epipolar%20error%20below,acceptable%2C%20and%20below%200.1%20excellent>
 
 <details>
   <summary>ROS camera calibration utils documentation</summary>

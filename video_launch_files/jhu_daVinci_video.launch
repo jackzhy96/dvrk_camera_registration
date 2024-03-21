@@ -15,7 +15,7 @@
     <arg name="crop_bottom" value="28"/>
     <arg name="crop_left" value="320"/>
     <arg name="crop_right" value="320"/>
-    <arg name="camera_info_file" value="file:////home/jbarrag3/research_juan/hand_eye_collect/data_ros_calib/stereo_calib1/left.yaml"/>
+    <arg name="camera_info_file" value="file:////home/jbarrag3/temp/calibrationdata_02_small_grid/left.yaml"/>
   </include>
 
   <include file="$(find dvrk_video)/launch/gscam_decklink.launch" ns="$(arg rig_name)">
@@ -25,7 +25,7 @@
     <arg name="crop_bottom" value="28"/>
     <arg name="crop_left" value="320"/>
     <arg name="crop_right" value="320"/>
-    <arg name="camera_info_file" value="file:////home/jbarrag3/research_juan/hand_eye_collect/data_ros_calib/stereo_calib1/right.yaml"/>
+    <arg name="camera_info_file" value="file:////home/jbarrag3/temp/calibrationdata_02_small_grid/right.yaml"/>
   </include>
 
   <!-- display video using simple ros image_view -->
