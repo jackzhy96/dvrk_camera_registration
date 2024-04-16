@@ -15,7 +15,7 @@
   <arg name="crop_right" default="0"/>
   <arg name="camera_info_file" default="file:////home/jbarrag3/research_juan/hand_eye_collect/data_ros_calib/stereo_calib1/left.yaml"/>
 
-  <node ns="decklink" name="$(arg camera_name)" pkg="gscam" type="gscam" output="screen">
+  <node name="$(arg camera_name)" pkg="gscam" type="gscam" output="screen">
     <param name="camera_name" value="$(arg camera_name)"/>
     <param name="camera_info_url" value="$(arg camera_info_file)"/>
     <!-- Deinterlacing filter if needed: ! deinterlace ! videoconvert -->
@@ -23,8 +23,9 @@
     <param name="frame_id" value="/decklink_frame"/>
     <!-- This needs to be set to false to avoid dropping tons of frames -->
     <param name="sync_sink" value="false"/>
-    <remap from="decklink/image_raw" to="image_raw"/>
+    <!-- <remap from="decklink/image_raw" to="image_raw"/> -->
+    <remap from="set_camera_info" to="$(arg camera_name)/set_camera_info"/>
   </node>
 
-  <node name="$(arg camera_name)_decklink_transform" pkg="tf" type="static_transform_publisher" args="1 2 3 0 -3.141 0 /world /decklink_frame 10"/>
+  <node name="$(arg camera_name)_transform" pkg="tf" type="static_transform_publisher" args="1 2 3 0 -3.141 0 /world /decklink_frame 10"/>
 </launch>
