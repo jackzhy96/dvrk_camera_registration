@@ -12,7 +12,20 @@ Print checkerboard from here: <https://github.com/Cartucho/dvrk_calib_hand_eye/b
 
 Check the printer has not scaled the checkerboard by measuring the square size. Other patterns can be used but the `square_size` and the `size` are needed when calling the calibration scripts.
 
+## Step 2: Create package to store camera calibrations
+
+```bash
+cd ~/catkin_ws/src
+catkin_create_pkg <rig_name>
+```
+
 ## Step 2: Camera calibration 
+
+```
+rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 12x10 --square 0.0045 right:=/jhu_daVinci/right/image_raw left:=/jhu_daVinci/left/image_raw right_camera:=/jhu_daVinci/right left_camera:=/jhu_daVinci/left
+```
+
+### Deprecated (See what should be kept in the final version of the documentation)
 Camera calibration can be performed with any software that generates the standard 3x3 camera intrinsics and 1x5 distortion coefficients specified in OpenCV. Since the hand-eye calibration expects the parameters to be published in a standard ROS topic, it is recommended to use ROS utils to calibrate the cameras.
 
 Monocular calibration (Single camera)
