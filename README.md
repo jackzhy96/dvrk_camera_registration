@@ -1,9 +1,19 @@
 # dVRK hand-eye calibration package
 
-Automatic hand-eye calibration package for the dVRK robot. Before using this package make sure to setup the ros image pipeline as described in [here](docs/ros1_image_pipeline_setup.md). 
+A ROS package to perform camera registration for the dVRK robot.
 
 **Setup notes**
+
 This script was tested on ROS noetic and the dVRK release 2.1.0.
+
+## Getting started
+
+### Software setup
+Before using this package make sure to setup the ros image pipeline as described in [here](docs/ros1_image_pipeline_setup.md). 
+
+### Hardware setup
+TODO
+
 
 ## Hand-eye calibration script
 
@@ -16,15 +26,3 @@ Example arguments
 python camera_registration.py  -a PSM2 -m 0.01  -c /jhu_daVinci/decklink/left/image_rect_color  -t /jhu_daVinci/decklink/left/camera_info
 ```
 
-
-## Trouble shooting. 
-
-Many errors comming from scipy. Currently testing the code with scipy 1.3.3
-
-Error 1
-```
-File "camera_registration.py", line 183, in measure_pose
-    rotation = np.float64(rotation_quaternion.as_matrix())
-AttributeError: 'Rotation' object has no attribute 'as_matrix'
-```
-solution: https://github.com/scipy/scipy/issues/11685
