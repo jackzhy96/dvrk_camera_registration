@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Author: Brendan Burkhart
 # Date: 2022-06-16
@@ -15,7 +15,6 @@
 
 import argparse
 import cv2
-import psm
 import json
 import math
 import numpy as np
@@ -23,11 +22,12 @@ import rospy
 import sys
 from scipy.spatial.transform import Rotation
 
-from camera import Camera
-import convex_hull
-import vision_tracking
-import crtk
-import dvrk
+# import crtk
+# import dvrk
+from dvrk_camera_registration import Camera
+from dvrk_camera_registration import PSM
+from dvrk_camera_registration import convex_hull
+from dvrk_camera_registration import vision_tracking
 
 
 class CameraRegistrationApplication:
@@ -37,7 +37,7 @@ class CameraRegistrationApplication:
         self.expected_interval = expected_interval
 
         ral = crtk.ral("dvrk_psm_test")
-        self.arm = psm.PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
+        self.arm = PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
 
         # another arm
         # self.arm = dvrk.psm(
