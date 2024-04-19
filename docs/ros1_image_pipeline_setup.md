@@ -14,16 +14,37 @@ Check the printer has not scaled the checkerboard by measuring the square size. 
 
 ## Step 2: Create package to store camera calibrations
 
+Before launching your video pipeline, you should create a package to store the camera calibration parameters. Make sure that the name of your package is the same as the `rig_name` defined in your launch file. You can create a package with the following commands:
+
 ```bash
 cd ~/catkin_ws/src
 catkin_create_pkg <rig_name>
+cd ~/catkin_ws
+catkin build
+source ~/catkin_ws/devel/setup.bash
 ```
+
+Then launch the file with
+
+```bash
+roslaunch dvrk_camera_registration jhu_daVinci_video.launch
+```
+
+Make sure that you are not getting warnings such as
+
+```
+[ WARN] [1713557429.852579673]: unknown package: jhu_daVinci_endoscope_calibration (ignored)
+```
+
+This implies that the package was not found in the workspace. Try to rebuild the workspace with `catkin build`, source the workspace again, and the relaunch the video launch file.
 
 ## Step 2: Camera calibration 
 
 ```
 rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 12x10 --square 0.0045 right:=/jhu_daVinci/right/image_raw left:=/jhu_daVinci/left/image_raw right_camera:=/jhu_daVinci/right left_camera:=/jhu_daVinci/left
 ```
+
+After calibration, click on the commit button to save your calibrations in the package that was created in the previous step.
 
 ### Deprecated (See what should be kept in the final version of the documentation)
 Camera calibration can be performed with any software that generates the standard 3x3 camera intrinsics and 1x5 distortion coefficients specified in OpenCV. Since the hand-eye calibration expects the parameters to be published in a standard ROS topic, it is recommended to use ROS utils to calibrate the cameras.

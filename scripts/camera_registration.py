@@ -22,8 +22,8 @@ import rospy
 import sys
 from scipy.spatial.transform import Rotation
 
-# import crtk
-# import dvrk
+import crtk
+import dvrk
 from dvrk_camera_registration import Camera
 from dvrk_camera_registration import PSM
 from dvrk_camera_registration import convex_hull

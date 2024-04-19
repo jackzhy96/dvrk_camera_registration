@@ -1,14 +1,14 @@
 <launch>
 
   <!-- Set this to your camera's name -->
-  <arg name="rig_name" default="jhu_daVinci"/>
+  <arg name="rig_name" default="jhu_daVinci_endoscope_calibration"/>
   <arg name="left_camera_name" default="left"/>
   <arg name="left_cam_device" default="1"/>
   <arg name="right_camera_name" default="right"/>
   <arg name="right_cam_device" default="0"/>
 
   <!-- camera driver nodes -->
-  <include file="./gscam_decklink.launch" ns="$(arg rig_name)">
+  <include file="$(find dvrk_camera_registration)/launch/gscam_decklink.launch" ns="$(arg rig_name)">
     <arg name="camera_name" value="$(arg left_camera_name)"/>
     <arg name="device" value="$(arg left_cam_device)"/>
     <arg name="crop_top" value="28"/>
@@ -19,7 +19,7 @@
     <arg name="camera_info_file" value="package://$(arg rig_name)/calibrations/$(arg left_camera_name).yaml"/>
   </include>
 
-  <include file="./gscam_decklink.launch" ns="$(arg rig_name)">
+  <include file="$(find dvrk_camera_registration)/launch/gscam_decklink.launch" ns="$(arg rig_name)">
     <arg name="camera_name" value="$(arg right_camera_name)"/>
     <arg name="device" value="$(arg right_cam_device)"/>
     <arg name="crop_top" value="28"/>

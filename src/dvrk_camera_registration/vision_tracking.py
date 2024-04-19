@@ -17,7 +17,7 @@ import numpy as np
 import threading
 import queue
 import scipy
-import camera
+from dvrk_camera_registration import Camera
 import time
 from enum import Enum
 import collections
@@ -182,7 +182,7 @@ class VisionTracker:
         self,
         target_type,
         message_manager,
-        camera: camera.Camera,
+        camera: Camera,
         parameters=Parameters(),
         window_title="Vision tracking",
     ):
