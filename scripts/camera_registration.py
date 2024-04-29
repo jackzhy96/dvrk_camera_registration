@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Author: Brendan Burkhart
 # Date: 2022-06-16
@@ -15,7 +15,6 @@
 
 import argparse
 import cv2
-import psm
 import json
 import math
 import numpy as np
@@ -23,9 +22,12 @@ import rospy
 import sys
 from scipy.spatial.transform import Rotation
 
-from camera import Camera
-import convex_hull
-import vision_tracking
+import crtk
+import dvrk
+from dvrk_camera_registration import Camera
+from dvrk_camera_registration import PSM
+from dvrk_camera_registration import convex_hull
+from dvrk_camera_registration import vision_tracking
 
 
 class CameraRegistrationApplication:
@@ -33,21 +35,36 @@ class CameraRegistrationApplication:
         self.camera = camera
         self.marker_size = marker_size
         self.expected_interval = expected_interval
-        self.arm = psm.PSM(arm_name=arm_name, expected_interval=expected_interval)
+
+        ral = crtk.ral("dvrk_psm_test")
+        self.arm = PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
+
+        # another arm
+        # self.arm = dvrk.psm(
+        #     ral=ral, arm_name=arm_name, expected_interval=expected_interval
+        # )
+        ral.check_connections()
+
+        print(f"measured_jp {self.arm.measured_jp()}")
+        print("connections checked")
 
     def setup(self):
         self.messages.info("Enabling {}...".format(self.arm.name))
         if not self.arm.enable(5):
-            self.messages.error("Failed to enable {} within 10 seconds".format(self.arm.name))
+            self.messages.error(
+                "Failed to enable {} within 10 seconds".format(self.arm.name)
+            )
             return False
 
         self.messages.info("Homing {}...".format(self.arm.name))
         if not self.arm.home(10):
-            self.messages.error("Failed to home {} within 10 seconds".format(self.arm.name))
+            self.messages.error(
+                "Failed to home {} within 10 seconds".format(self.arm.name)
+            )
             return False
 
         self.messages.info("Homing complete\n")
-        self.arm.jaw.close().wait()
+        # self.arm.jaw.close().wait()
 
         return True
 
@@ -89,13 +106,15 @@ class CameraRegistrationApplication:
             else:
                 break
 
-        self.messages.info("Range of motion displayed in plot, close plot window to continue")
+        self.messages.info(
+            "Range of motion displayed in plot, close plot window to continue"
+        )
         convex_hull.display_hull(hull)
         return self.ok, hull
 
     # Make sure target is visible and arm is within range of motion
     def ensure_target_visible(self, safe_range):
-        self.done = True # run first check immeditately
+        self.done = True  # run first check immeditately
         first_check = True
 
         while self.ok:
@@ -140,7 +159,7 @@ class CameraRegistrationApplication:
         target_poses = []
         robot_poses = []
 
-        self.arm.jaw.close()
+        # self.arm.jaw.close()
 
         def measure_pose(joint_pose):
             nonlocal target_poses
@@ -219,7 +238,7 @@ class CameraRegistrationApplication:
                         self.tracker.display_point(target_poses[-1][1], (255, 255, 0))
                         break
 
-                self.messages.progress((i+1)/len(sample_poses))
+                self.messages.progress((i + 1) / len(sample_poses))
 
         self.messages.line_break()
         self.messages.info("Determining limits of camera view...")
@@ -257,12 +276,14 @@ class CameraRegistrationApplication:
         return robot_poses, target_poses
 
     def compute_registration(self, robot_poses, target_poses):
-        error, rotation, translation, gripper = self.camera.calibrate_pose(
+        error, rotation, translation = self.camera.calibrate_pose(
             robot_poses, target_poses
         )
 
         if error < 1e-4:
-            self.messages.info("Registration error ({:.3e}) is within normal range".format(error))
+            self.messages.info(
+                "Registration error ({:.3e}) is within normal range".format(error)
+            )
         else:
             self.messages.warn(
                 "WARNING: registration error ({:.3e}) is unusually high! Should generally be <0.00005".format(
@@ -275,10 +296,10 @@ class CameraRegistrationApplication:
             "Measured distance from RCM to camera origin: {:.3f} m\n".format(distance)
         )
 
-        return self.ok, rotation, translation, gripper
+        return self.ok, rotation, translation
 
     def save_registration(self, rotation, translation, file_name):
-        rotation = rotation.T
+        rotation = np.linalg.inv(rotation)
         translation = -np.matmul(rotation, translation)
 
         transform = np.eye(4)
@@ -330,7 +351,7 @@ class CameraRegistrationApplication:
             self.ok = self.ok and self.setup()
             if not self.ok:
                 return
-
+            print("finish setup")
             ok, safe_range = self.determine_safe_range_of_motion()
             if not self.ok or not ok:
                 return
@@ -345,10 +366,12 @@ class CameraRegistrationApplication:
 
             if len(data[0]) <= 10:
                 self.messages.error("Not enough pose data, cannot compute registration")
-                self.messages.error("Please try again, with more range of motion within camera view")
+                self.messages.error(
+                    "Please try again, with more range of motion within camera view"
+                )
                 return
 
-            ok, rvec, tvec, g = self.compute_registration(*data)
+            ok, rvec, tvec = self.compute_registration(*data)
             if not ok:
                 return
 
@@ -365,7 +388,7 @@ class CameraRegistrationApplication:
 
 def main():
     # ros init node so we can use default ros arguments (e.g. __ns:= for namespace)
-    rospy.init_node("dvrk_camera_registration", anonymous=True)
+    # rospy.init_node("dvrk_camera_registration", anonymous=True)
     # strip ros arguments
     argv = rospy.myargv(argv=sys.argv)
 
@@ -390,7 +413,7 @@ def main():
         "-i",
         "--interval",
         type=float,
-        default=0.01,
+        default=0.1,
         help="expected interval in seconds between messages sent by the device",
     )
     parser.add_argument(

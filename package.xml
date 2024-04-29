@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>dvrk_camera_registration</name>
+  <version>0.0.0</version>
+  <description>Camera to dVRK registration. Required to teleoperated the robot.</description>
+  <maintainer email="anton.deguet@jhu.edu">Anton Deguet</maintainer>
+  <maintainer email="jbarrag3@jh.edu">Juan Antonio Barragan</maintainer>
+  <maintainer email="bburkha4@jhu.edu">Brendan Burkhart</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>rospy</exec_depend>
+
+  <export>
+  </export>
+</package>
