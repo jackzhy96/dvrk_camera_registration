@@ -40,7 +40,7 @@ roslaunch dvrk_video stereo_decklink_1280x1024.launch stereo_rig_name:=jhu_daVin
 
 The calibration is performed using the ROS provided program, please refer to their documentation for the parameters (http://wiki.ros.org/camera_calibration).  You  need to make sure the video stream is started and are using the correct rig name.
 ```bash
-rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 12x10 --square 0.0045 right:=/jhu_daVinci/right left:=/jhu_daVinci/left left_camera:=/jhu_daVinci/left right_camera:=/jhu_daVinci/right
+rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 12x10 --square 0.0045 right:=/jhu_daVinci/right/image_raw left:=/jhu_daVinci/left/image_raw left_camera:=/jhu_daVinci/left right_camera:=/jhu_daVinci/right
 ```
 Once the calibration is performed, don't forget to save and commit using the GUI.
 
