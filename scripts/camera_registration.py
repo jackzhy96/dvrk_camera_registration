@@ -3,7 +3,7 @@
 # Author: Brendan Burkhart
 # Date: 2022-06-16
 
-# (C) Copyright 2022 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2022-2024 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -23,7 +23,6 @@ import sys
 from scipy.spatial.transform import Rotation
 
 import crtk
-import dvrk
 from dvrk_camera_registration import Camera
 from dvrk_camera_registration import PSM
 from dvrk_camera_registration import convex_hull
@@ -38,11 +37,6 @@ class CameraRegistrationApplication:
 
         ral = crtk.ral("dvrk_psm_test")
         self.arm = PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
-
-        # another arm
-        # self.arm = dvrk.psm(
-        #     ral=ral, arm_name=arm_name, expected_interval=expected_interval
-        # )
         ral.check_connections()
 
         print(f"measured_jp {self.arm.measured_jp()}")
@@ -298,7 +292,7 @@ class CameraRegistrationApplication:
 
         return self.ok, rotation, translation
 
-    def save_registration(self, rotation, translation, file_name):
+    def save_registration(self, rotation, translation, file_name, dvrk_format):
         rotation = np.linalg.inv(rotation)
         translation = -np.matmul(rotation, translation)
 
@@ -306,12 +300,20 @@ class CameraRegistrationApplication:
         transform[0:3, 0:3] = rotation
         transform[0:3, 3:4] = translation
 
+        if dvrk_format:
+            to_dvrk = np.eye(4)
+            to_dvrk[0,0] = -to_dvrk[0,0]
+            to_dvrk[1,1] = -to_dvrk[1,1]
+            transform = to_dvrk @ transform
+
         base_frame = {
             "reference-frame": self.tracker.get_camera_frame() or "camera",
             "transform": transform.tolist(),
         }
 
         output = '"base-frame": {}'.format(json.dumps(base_frame))
+        if not dvrk_format:
+            output = '{' + output + '}'
 
         with open(file_name, "w") as f:
             f.write(output)
@@ -341,6 +343,7 @@ class CameraRegistrationApplication:
 
     def run(self):
         try:
+            cv2.setNumThreads(2)
             self.ok = True
 
             self._init_tracking()
@@ -378,12 +381,16 @@ class CameraRegistrationApplication:
             self.tracker.stop()
 
             self.save_registration(
-                rvec, tvec, "./{}_registration.json".format(self.arm.name)
+                rvec, tvec, "./{}_registration-open-cv.json".format(self.arm.name), False # using OpenCV frame coordinates
+            )
+
+            self.save_registration(
+                rvec, tvec, "./{}_registration-dVRK.json".format(self.arm.name), True # using dVRK frame coordinates
             )
 
         finally:
             self.tracker.stop()
-            self.arm.unregister()
+            # self.arm.unregister()
 
 
 def main():

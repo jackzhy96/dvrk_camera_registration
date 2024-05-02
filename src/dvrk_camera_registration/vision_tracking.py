@@ -299,7 +299,7 @@ class VisionTracker:
 
                 self.draw_points(frame)
                 cv2.imshow(self.window_title, frame)
-                key = cv2.waitKey(20)
+                key = cv2.waitKey(200) # 20ms, run at 50Hz max
                 key = key & 0xFF  # Upper bits are modifiers (control, alt, etc.)
                 escape = 27
                 if key == ord("q") or key == escape:

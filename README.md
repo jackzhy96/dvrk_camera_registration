@@ -26,3 +26,27 @@ Example arguments
 python camera_registration.py  -a PSM2 -m 0.01  -c /jhu_daVinci/decklink/left/image_rect_color  -t /jhu_daVinci/decklink/left/camera_info
 ```
 
+## Anton's notes
+
+Requirements:
+```bash
+# sudo apt install python3-scipy
+pip3 install --user scipy==1.4.0
+```
+
+Starting the video on left image with distortion correction.
+```bash
+roslaunch dvrk_video gscam_decklink.launch camera_name:=left camera_info_url:=package://jhu_daVinci_Si/calibrations/left.yaml mono_proc:=True
+```
+
+rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 12x10 --square 0.0045 right:=/jhu_daVinci_Si/right/image_raw left:=/jhu_daVinci_Si/left/image_raw right_camera:=/jhu_daVinci_Si/right left_camera:=/jhu_daVinci_Si/left
+
+Or start the stereo version
+```bash
+roslaunch dvrk_video stereo_decklink_goovis.launch stereo_rig_name:=jhu_daVinci_Si stereo_proc:=True
+```
+
+Validation script
+```bash
+ rosrun dvrk_camera_registration vis_gripper_pose.py -c /jhu_daVinci_Si/left/image_rect_color -t /jhu_daVinci_Si/left/camera_info -h PSM2_registration.json
+```

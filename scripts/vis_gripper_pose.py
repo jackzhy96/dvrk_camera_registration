@@ -29,7 +29,7 @@ from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import crtk
-import psm
+from dvrk_camera_registration import psm
 from tf_conversions.posemath import toMatrix
 import json
 
@@ -221,7 +221,7 @@ def main(img_topic: str, camera_info_topic: str, hand_eye_json: Path):
     ral = crtk.ral("dvrk_test")
     arm_handle = psm.PSM(ral, arm_name="PSM2", expected_interval=0.1)
     ral.check_connections()
-
+    cv2.setNumThreads(2)
     cam_T_robot_base = load_hand_eye_calibration(hand_eye_json)
 
     print(f"measured_jp {arm_handle.local.measured_cp()}")
