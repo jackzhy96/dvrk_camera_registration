@@ -14,12 +14,12 @@
 # --- end cisst license ---
 
 import argparse
+import sys
+import time
 import cv2
 import json
 import math
 import numpy as np
-import rospy
-import sys
 from scipy.spatial.transform import Rotation
 
 import crtk
@@ -30,12 +30,11 @@ from dvrk_camera_registration import vision_tracking
 
 
 class CameraRegistrationApplication:
-    def __init__(self, arm_name, marker_size, expected_interval, camera):
+    def __init__(self, ral, arm_name, marker_size, expected_interval, camera):
+        self.ral = ral
         self.camera = camera
         self.marker_size = marker_size
         self.expected_interval = expected_interval
-
-        ral = crtk.ral("dvrk_psm_test")
         self.arm = PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
         ral.check_connections()
 
@@ -58,13 +57,12 @@ class CameraRegistrationApplication:
             return False
 
         self.messages.info("Homing complete\n")
-        # self.arm.jaw.close().wait()
 
         return True
 
     def determine_safe_range_of_motion(self):
         self.messages.info(
-            "Release the clutch and move the arm around to establish the area the arm can move in"
+            "Release the clutch and move the arm around to establish the area the arm can move in.  It doesn't matter if the ArUco tag is visible!"
         )
         self.messages.info("Press enter or 'd' when done")
 
@@ -83,7 +81,7 @@ class CameraRegistrationApplication:
                 if len(hull_points) == 0 or distance(position, hull_points[-1]) > 0.005:
                     hull_points.append(position)
 
-                rospy.sleep(self.expected_interval)
+                time.sleep(self.expected_interval)
 
             return hull_points
 
@@ -112,7 +110,7 @@ class CameraRegistrationApplication:
         first_check = True
 
         while self.ok:
-            rospy.sleep(0.25)
+            time.sleep(0.25)
 
             if not self.done:
                 continue
@@ -153,8 +151,6 @@ class CameraRegistrationApplication:
         target_poses = []
         robot_poses = []
 
-        # self.arm.jaw.close()
-
         def measure_pose(joint_pose):
             nonlocal target_poses
             nonlocal robot_poses
@@ -164,7 +160,7 @@ class CameraRegistrationApplication:
                 return False
 
             self.arm.move_jp(joint_pose).wait()
-            rospy.sleep(0.5)
+            time.sleep(0.5)
 
             ok, target_pose = self.tracker.acquire_pose(timeout=4.0)
             if not ok:
@@ -215,7 +211,7 @@ class CameraRegistrationApplication:
         def collect(poses, tool_shaft_rotation=math.pi / 10):
             self.messages.progress(0.0)
             for i, pose in enumerate(poses):
-                if not self.ok or rospy.is_shutdown():
+                if not self.ok or self.ral.is_shutdown():
                     return
 
                 rotation_direction = 1 if i % 2 == 0 else -1
@@ -394,10 +390,8 @@ class CameraRegistrationApplication:
 
 
 def main():
-    # ros init node so we can use default ros arguments (e.g. __ns:= for namespace)
-    # rospy.init_node("dvrk_camera_registration", anonymous=True)
-    # strip ros arguments
-    argv = rospy.myargv(argv=sys.argv)
+    # extract ros arguments (e.g. __ns:= for namespace)
+    argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
 
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -423,24 +417,47 @@ def main():
         default=0.1,
         help="expected interval in seconds between messages sent by the device",
     )
-    parser.add_argument(
+    individual_topics = parser.add_argument_group("Individual Topics",
+                                                  "Normal cases should use --camera-namespace (-n).  Use this only if the topic isn't in the conventional ROS namespace.")
+    individual_topics.add_argument(
         "-c",
-        "--camera_image_topic",
+        "--camera-image-topic",
         type=str,
-        required=True,
-        help="ROS topic of rectified color image transport",
+        help="ROS topic of rectified color image transport"
     )
-    parser.add_argument(
+    individual_topics.add_argument(
         "-t",
-        "--camera_info_topic",
+        "--camera-info-topic",
         type=str,
-        required=True,
         help="ROS topic of camera info for camera",
     )
-    args = parser.parse_args(argv[1:])  # skip argv[0], script name
+    parser.add_argument(
+        "-n",
+        "--camera-namespace",
+        type=str,
+        help="ROS namespace for the camera",
+    )
+    args = parser.parse_args(argv)
 
-    camera = Camera(args.camera_info_topic, args.camera_image_topic)
+    camera_info_topic = ""
+    camera_image_topic = ""
+    if bool(args.camera_namespace):
+        camera_image_topic = args.camera_namespace + "/image_rect_color"
+        camera_info_topic = args.camera_namespace + "/camera_info"
+        if bool(args.camera_info_topic) or bool(args.camera_image_topic):
+            print("warning: --camera-image-topic and --camera-info-topic are ignored when --camera-namespace is set")
+    else:
+        if bool(args.camera_info_topic) and bool(args.camera_image_topic):
+            camera_image_topic = args.camera_image_topic
+            camera_info_topic = args.camera_info_topic
+        else:
+            parser.error('--camera-image-topic and --camera-info-topic are both required if --camera-namespace is not provided')
+
+            
+    ral = crtk.ral("dvrk_camera_calibration")
+    camera = Camera(ral, camera_info_topic, camera_image_topic)
     application = CameraRegistrationApplication(
+        ral,
         args.arm, args.marker_size, args.interval, camera
     )
     application.run()

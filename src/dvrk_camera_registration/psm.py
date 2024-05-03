@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet, Brendan Burkhart
 #  Created on: 2022-08-06
 
-#  (C) Copyright 2022 Johns Hopkins University (JHU), All Rights Reserved.
+#  (C) Copyright 2022-2024 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -12,50 +12,34 @@
 # --- end cisst license ---
 
 import time
-from dvrk.arm import *
-
-from crtk_msgs.srv import QueryForwardKinematics, QueryForwardKinematicsRequest
-import rospy
-from geometry_msgs.msg import Pose, Point, Quaternion
 import math
 import numpy as np
 import crtk
+import geometry_msgs.msg
 
-
-class PSM(arm):
-    class Jaw:
+class PSM:
+    class Local:
         def __init__(self, ral, expected_interval, operating_state_instance):
-            self._crtk_utils = crtk.utils(
-                self, ral, expected_interval, operating_state_instance
-            )
-            self._crtk_utils.add_move_jp()
-            self._crtk_utils.add_measured_js()
-
-        def close(self):
-            return self.move_jp(np.array(math.radians(-20.0)))
-
-        def open(self, angle=math.radians(60.0)):
-            return self.move_jp(np.array(angle))
+            self.crtk_utils = crtk.utils(self, ral, expected_interval, operating_state_instance)
+            self.crtk_utils.add_measured_cp()
+            self.crtk_utils.add_forward_kinematics()
 
     # initialize the robot
     def __init__(self, ral, arm_name, ros_namespace="", expected_interval=0.01):
-        # self._arm__init_arm(arm_name, ros_namespace, expected_interval)
-        super().__init__(ral, arm_name, expected_interval)
-        jaw_ral = self.ral().create_child("/jaw")
+        self.ral = ral.create_child(arm_name)
+        self.crtk_utils = crtk.utils(self, self.ral, expected_interval)
+        self.crtk_utils.add_operating_state()
+        self.crtk_utils.add_measured_js()
+        self.crtk_utils.add_measured_cp()
+        self.crtk_utils.add_move_jp()
 
         self.namespace = ros_namespace
-        self.jaw = PSM.Jaw(jaw_ral, expected_interval, operating_state_instance=self)
-
-        query_cp_name = "{}/local/query_cp".format(self.namespace)
-        self.local_query_cp = rospy.ServiceProxy(query_cp_name, QueryForwardKinematics)
+        self.local = PSM.Local(self.ral.create_child("local"), expected_interval, operating_state_instance=self)
 
         base_frame_topic = "/{}/set_base_frame".format(self.namespace)
-        self._set_base_frame_pub = rospy.Publisher(
-            base_frame_topic, Pose, queue_size=1, latch=True
+        self._set_base_frame_pub = self.ral.publisher(
+            base_frame_topic, geometry_msgs.msg.PoseStamped, queue_size=1, latch=True
         )
-
-        # Base class will unregister pub_list on shutdown
-        # self._arm__pub_list.append(self._set_base_frame_pub)
 
         self.cartesian_insertion_minimum = 0.055
         self.name = arm_name
@@ -70,14 +54,6 @@ class PSM(arm):
 
     def set_base_frame(self, pose):
         self._set_base_frame_pub.publish(pose)
-
-    # def forward_kinematics(self, joint_position):
-    #     pad_length = max(0, 8 - len(joint_position))
-    #     request = QueryForwardKinematicsRequest()
-    #     request.jp.position = np.pad(joint_position, (0, pad_length)).tolist()
-    #     response = self.local_query_cp(request)
-    #     point = response.cp.pose.position
-    #     return np.array([point.x, point.y, point.z])
 
     # Bring arm back to center
     def center(self):
@@ -106,7 +82,6 @@ class PSM(arm):
 
 if __name__ == "__main__":
     ral = crtk.ral("dvrk_psm_test")
-    # time.sleep(0.5)
 
     psm2 = PSM(ral, "PSM2", ros_namespace="", expected_interval=0.01)
     ral.check_connections()

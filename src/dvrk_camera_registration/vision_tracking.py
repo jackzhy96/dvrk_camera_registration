@@ -1,7 +1,7 @@
 # Author: Brendan Burkhart
 # Date: 2022-06-21
 
-# (C) Copyright 2022 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2022-2024 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -293,9 +293,6 @@ class VisionTracker:
                         self.axes[1],
                         0.01,
                     )
-                    self.camera.publish_pose(self.axes[0], self.axes[1])
-                else:
-                    self.camera.publish_no_pose()
 
                 self.draw_points(frame)
                 cv2.imshow(self.window_title, frame)
@@ -328,7 +325,6 @@ class VisionTracker:
                 self.camera.no_distortion,
             )
             rotation_, _ = cv2.Rodrigues(rvecs[0])
-            self.camera.publish_pose(rotation_, tvecs[0, 0])
             cv2.drawFrameAxes(
                 frame,
                 self.camera.camera_matrix,

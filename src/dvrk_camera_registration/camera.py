@@ -3,7 +3,7 @@
 # Author: Brendan Burkhart
 # Date: 2022-06-21
 
-# (C) Copyright 2022 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2022-2024 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -15,8 +15,7 @@
 
 import cv2
 import numpy as np
-import rospy
-import tf
+import crtk
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, Quaternion, Pose, PoseArray
 from cv_bridge import CvBridge
@@ -29,60 +28,34 @@ class Camera:
     Requires calibrated ROS camera
     """
 
-    def __init__(self, camera_info_topic, image_topic):
+    def __init__(self, ral, info_topic, image_topic):
         """image_topic must be rectified color image"""
+        self.ral = ral
         self.cv_bridge = CvBridge()
         self.image_callback = None
         self.camera_matrix = None
         self.camera_frame = None
         self.no_distortion = np.array([], dtype=np.float32)
 
-        self.camera_info_topic = camera_info_topic
+        self.info_topic = info_topic
         self.image_topic = image_topic
-        self.pose_publisher = rospy.Publisher(
-            "/vision_target_pose", PoseArray, queue_size=1
-        )
 
     def set_callback(self, image_callback):
         if self.image_callback is not None and image_callback is not None:
             self.image_callback = image_callback
         elif self.image_callback is not None and image_callback is None:
-            self.image_subscriber.unregister()
-            self.image_subscriber.unregister()
             self.image_callback = None
         else:
             self.image_callback = image_callback
-            self.info_subscriber = rospy.Subscriber(
-                self.camera_info_topic, CameraInfo, self._info_callback
+            self.info_subscriber = self.ral.subscriber(
+                self.info_topic, CameraInfo, self._info_callback
             )
-            self.image_subscriber = rospy.Subscriber(
+            self.image_subscriber = self.ral.subscriber(
                 self.image_topic, Image, self._image_callback
             )
 
     def get_camera_frame(self):
         return self.camera_frame
-
-    # TODO
-    def publish_no_pose(self):
-        poses = PoseArray()
-        poses.header.frame_id = self.camera_frame
-        poses.header.stamp = rospy.Time.now()
-        self.pose_publisher.publish(poses)
-
-    # TODO
-    def publish_pose(self, rotation, tvec):
-        matrix = np.eye(4)
-        matrix[0:3, 0:3] = rotation
-        q = tf.transformations.quaternion_from_matrix(matrix)
-        pose = Pose()
-        pose.position = Point(tvec[0], tvec[1], tvec[2])
-        pose.orientation = Quaternion(q[0], q[1], q[2], q[3])
-        poses = PoseArray()
-        poses.poses.append(pose)
-        poses.header.frame_id = self.camera_frame
-        poses.header.stamp = rospy.Time.now()
-
-        self.pose_publisher.publish(poses)
 
     def _info_callback(self, info_msg):
         projection_matrix = np.array(info_msg.P).reshape((3, 4))
@@ -93,7 +66,6 @@ class Camera:
         callback = self.image_callback  # copy to prevent race
         if self.camera_matrix is None or callback is None:
             return
-
         cv_image = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding="bgr8")
         callback(cv_image)
 
@@ -160,7 +132,3 @@ class Camera:
         error = np.std(transforms - np.mean(transforms))
 
         return error, rotation, translation
-
-    def unregister(self):
-        self.info_callback.unregister()
-        self.image_callback.unregister()
