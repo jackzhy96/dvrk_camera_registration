@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-# Author: Juan Antonio Barragan  
+# Author: Juan Antonio Barragan
 # Date: 2024-04-19
 
-# (C) Copyright 2022 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2022-2024 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -14,52 +14,49 @@
 # --- end cisst license ---
 
 import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-from dataclasses import dataclass, field
 import time
-import click
-from pathlib import Path
-import cv2
-import numpy as np
-import rospy
-from sensor_msgs.msg import Image, CameraInfo
-from cv_bridge import CvBridge, CvBridgeError
-import cv2
-import crtk
-from dvrk_camera_registration import psm
-from tf_conversions.posemath import toMatrix
+import argparse
+import pathlib
 import json
+from dataclasses import dataclass, field
+import numpy
+
+import cv_bridge
+import cv2
+
+import crtk
+import sensor_msgs.msg
+import tf_conversions.posemath
+
+import dvrk_camera_registration
 
 
 @dataclass
 class ImageSubscriber:
-    rect_image_topic: str
+    ral: crtk.ral
+    camera_image_topic: str
     camera_info_topic: str
-    current_frame: np.ndarray = field(default=None, init=False)
-    camera_matrix: np.ndarray = field(default=None, init=False)
+    current_frame: numpy.ndarray = field(default=None, init=False)
+    camera_matrix: numpy.ndarray = field(default=None, init=False)
 
     def __post_init__(self):
-        # rospy.init_node("image_subscriber", anonymous=True)
-        self.bridge = CvBridge()
-
-        self.image_sub = rospy.Subscriber(
-            self.rect_image_topic, Image, self._img_callback
+        self.bridge = cv_bridge.CvBridge()
+        self.image_subscriber = self.ral.subscriber(
+            self.camera_image_topic, sensor_msgs.msg.Image, self._img_callback
         )
-        self.info_subscriber = rospy.Subscriber(
-            self.camera_info_topic, CameraInfo, self._info_callback
+        self.info_subscriber = self.ral.subscriber(
+            self.camera_info_topic, sensor_msgs.msg.CameraInfo, self._info_callback
         )
 
     def _img_callback(self, data):
         try:
             self.current_frame = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            rospy.logerr(e)
+        except cv_bridge.CvBridgeError as e:
+            # rospy.logerr(e)
+            print(e)
 
     def _info_callback(self, info_msg):
-        projection_matrix = np.array(info_msg.P).reshape((3, 4))
+        projection_matrix = numpy.array(info_msg.P).reshape((3, 4))
         self.camera_matrix = projection_matrix[0:3, 0:3]
         self.camera_frame = info_msg.header.frame_id
 
@@ -76,23 +73,23 @@ class ImageSubscriber:
 
 @dataclass
 class PoseAnnotator:
-    camera_matrix: np.ndarray
-    cam_T_base: np.ndarray
-    dist_coeffs: np.ndarray = field(
-        default_factory=lambda: np.array([0.0, 0.0, 0.0, 0.0, 0.0]).reshape((-1, 1)),
+    camera_matrix: numpy.ndarray
+    cam_T_base: numpy.ndarray
+    dist_coeffs: numpy.ndarray = field(
+        default_factory=lambda: numpy.array([0.0, 0.0, 0.0, 0.0, 0.0]).reshape((-1, 1)),
         init=False,
     )
 
     def __post_init__(self):
         print(self.dist_coeffs.shape)
 
-    def draw_pose_on_img(self, img: np.ndarray, local_measured_cp: np.ndarray):
+    def draw_pose_on_img(self, img: numpy.ndarray, local_measured_cp: numpy.ndarray):
         pose = self.cam_T_base @ local_measured_cp
 
         tvec = pose[:3, 3]
         rvec = cv2.Rodrigues(pose[:3, :3])[0]
 
-        points_3d = np.array([[[0, 0, 0]]], np.float32)
+        points_3d = numpy.array([[[0, 0, 0]]], numpy.float32)
         points_2d, _ = cv2.projectPoints(
             points_3d, rvec, tvec, self.camera_matrix, self.dist_coeffs
         )
@@ -101,7 +98,7 @@ class PoseAnnotator:
         # print(pose_data[idx])
         # print(img.shape)
 
-        points_2d = tuple(points_2d.astype(np.int32)[0, 0])
+        points_2d = tuple(points_2d.astype(numpy.int32)[0, 0])
 
         # print(points_2d)
 
@@ -112,10 +109,10 @@ class PoseAnnotator:
 
     def draw_axis(
         self,
-        img: np.ndarray,
-        mtx: np.ndarray,
-        dist: np.ndarray,
-        pose: np.ndarray,
+        img: numpy.ndarray,
+        mtx: numpy.ndarray,
+        dist: numpy.ndarray,
+        pose: numpy.ndarray,
         size: int = 10,
     ):
 
@@ -125,7 +122,7 @@ class PoseAnnotator:
         K = mtx
 
         rotV, _ = cv2.Rodrigues(R)
-        points = np.float32([[s, 0, 0], [0, s, 0], [0, 0, s], [0, 0, 0]]).reshape(-1, 3)
+        points = numpy.float32([[s, 0, 0], [0, s, 0], [0, 0, s], [0, 0, 0]]).reshape(-1, 3)
         axisPoints, _ = cv2.projectPoints(points, rotV, t, K, dist)
         axisPoints = axisPoints.astype(int)
 
@@ -155,25 +152,26 @@ class PoseAnnotator:
 
 
 def run_pose_visualizer(
-    arm_handle: psm.PSM,
-    img_topic: str,
+    ral: crtk.ral,
+    arm_handle: dvrk_camera_registration.PSM,
+    camera_image_topic: str,
     camera_info_topic: str,
-    cam_T_robot_base: np.ndarray,
+    cam_T_robot_base: numpy.ndarray,
 ):
 
-    img_subscriber = ImageSubscriber(img_topic, camera_info_topic)
+    img_subscriber = ImageSubscriber(ral, camera_image_topic, camera_info_topic)
     img_subscriber.wait_until_first_frame()
 
     pose_annotator = PoseAnnotator(img_subscriber.camera_matrix, cam_T_robot_base)
 
-    window_name = img_topic
+    window_name = camera_image_topic
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 640, 480)
 
-    while not rospy.is_shutdown():
+    while not ral.is_shutdown():
 
         img = img_subscriber.current_frame
-        local_measured_cp = toMatrix(arm_handle.local.measured_cp())
+        local_measured_cp = tf_conversions.posemath.toMatrix(arm_handle.local.measured_cp())
 
         img = pose_annotator.draw_pose_on_img(img, local_measured_cp)
         cv2.imshow(window_name, img)
@@ -185,47 +183,78 @@ def run_pose_visualizer(
     cv2.destroyAllWindows()
 
 
-def load_hand_eye_calibration(json_file: Path) -> np.ndarray:
+def load_hand_eye_calibration(json_file: pathlib.Path) -> numpy.ndarray:
     with open(json_file, "r") as f:
         data = json.load(f)
 
-    cam_T_robot_base = np.array(data['base-frame']['transform']).reshape(4, 4)
+    cam_T_robot_base = numpy.array(data['base-frame']['transform']).reshape(4, 4)
     return cam_T_robot_base
 
 
-@click.command()
-@click.option(
-    "-c",
-    "--img_topic",
-    default="/jhu_daVinci/decklink/left/image_rect_color",
-    help="Rectified camera image topic",
-)
-@click.option(
-    "-t",
-    "--camera_info_topic",
-    default="/jhu_daVinci/decklink/left/camera_info",
-    help="Camera info topic",
-)
-@click.option(
-    "-h",
-    "--hand_eye_json",
-    default="sample_registrations/PSM2_registration_small_grid.json",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Hand eye calibration json file",
-)
-def main(img_topic: str, camera_info_topic: str, hand_eye_json: Path):
-    """
-    Use hand-eye calibration to visualize the gripper's pose in the camera frame
-    """
+def main():
+    # extract ros arguments (e.g. __ns:= for namespace)
+    argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
 
-    ral = crtk.ral("dvrk_test")
-    arm_handle = psm.PSM(ral, arm_name="PSM2", expected_interval=0.1)
+    # parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-a",
+        "--arm",
+        type=str,
+        required=True,
+        choices=["PSM1", "PSM2", "PSM3"],
+        help="arm name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace",
+    )
+    parser.add_argument(
+        "-H",
+        "--hand-eye-json",
+        type=str,
+        required=True,
+        help="hand-eye calibration matrix in JSON format using OpenCV coordinate system",
+    )
+    individual_topics = parser.add_argument_group("Individual Topics",
+                                                  "Normal cases should use --camera-namespace (-n).  Use this only if the topic isn't in the conventional ROS namespace.")
+    individual_topics.add_argument(
+        "-c",
+        "--camera-image-topic",
+        type=str,
+        help="ROS topic of rectified color image transport"
+    )
+    individual_topics.add_argument(
+        "-t",
+        "--camera-info-topic",
+        type=str,
+        help="ROS topic of camera info for camera",
+    )
+    parser.add_argument(
+        "-n",
+        "--camera-namespace",
+        type=str,
+        help="ROS namespace for the camera",
+    )
+    args = parser.parse_args(argv)
+
+    camera_info_topic = ""
+    camera_image_topic = ""
+    if bool(args.camera_namespace):
+        camera_image_topic = args.camera_namespace + "/image_rect_color"
+        camera_info_topic = args.camera_namespace + "/camera_info"
+        if bool(args.camera_info_topic) or bool(args.camera_image_topic):
+            print("warning: --camera-image-topic and --camera-info-topic are ignored when --camera-namespace is set")
+    else:
+        if bool(args.camera_info_topic) and bool(args.camera_image_topic):
+            camera_image_topic = args.camera_image_topic
+            camera_info_topic = args.camera_info_topic
+        else:
+            parser.error('--camera-image-topic and --camera-info-topic are both required if --camera-namespace is not provided')
+
+
+    ral = crtk.ral("vis_gripper_pose")
+    arm_handle = dvrk_camera_registration.PSM(ral, arm_name=args.arm, expected_interval=0.1)
     ral.check_connections()
     cv2.setNumThreads(2)
-    cam_T_robot_base = load_hand_eye_calibration(hand_eye_json)
-
-    print(f"measured_jp {arm_handle.local.measured_cp()}")
-    run_pose_visualizer(arm_handle, img_topic, camera_info_topic, cam_T_robot_base)
+    cam_T_robot_base = load_hand_eye_calibration(args.hand_eye_json)
+    run_pose_visualizer(ral, arm_handle, camera_image_topic, camera_info_topic, cam_T_robot_base)
 
 
 if __name__ == "__main__":

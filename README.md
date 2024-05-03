@@ -59,7 +59,7 @@ Start a dVRK console with the PSM you mean to register.
 
 To perform the hand-eye calibration first attach the calibration ArUco marker and run the `camera_registration.py` script. This script first asks the user to move a the PSM to create a convex hull in which it is safe to move and then move the robot automatically to collect data for the hand-eye calibration. 
 ```bash
-rosrun dvrk_camera_registration camera_registration.py -a PSM2 -m 0.01 -c /jhu_daVinci/left/image_rect_color -t /jhu_daVinci/left/camera_info
+rosrun dvrk_camera_registration camera_registration.py -a PSM2 -m 0.01 -n /jhu_daVinci/left
 ```
 
 After collecting the data, the script will generate a couple of `.json` files with the transformation between the camera PSM and the camera.
@@ -68,7 +68,7 @@ After collecting the data, the script will generate a couple of `.json` files wi
 
 We also provide a  script that overlays the estimated pose of the PSM end-effector based on the telemetry.
 ```bash
-rosrun dvrk_camera_registration vis_gripper_pose.py -c /jhu_daVinci/left/image_rect_color -t /jhu_daVinci/left/camera_info -h PSM2_registration-open-cv.json
+rosrun dvrk_camera_registration vis_gripper_pose.py -a PSM2 -n /jhu_daVinci/left -H PSM2_registration-open-cv.json
 ```
 
 ## Edit your `console.json`
