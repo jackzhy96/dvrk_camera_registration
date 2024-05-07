@@ -149,7 +149,7 @@ class CameraRegistrationApplication:
     # From starting position within view of camera, determine the camera's
     # field of view via exploration while staying within safe range of motion
     # Once field of view is found, collect additional pose samples
-    def collect_data(self, safe_range, start_jp, edge_samples=2):
+    def collect_data(self, safe_range, start_jp, edge_samples=4):
         current_jp = numpy.copy(start_jp)
         current_jp[4:6] = numpy.zeros(2)
 
