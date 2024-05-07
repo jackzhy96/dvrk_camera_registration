@@ -1,2 +1,2 @@
 from .camera import Camera
-from .psm import PSM
+from .arm import ARM

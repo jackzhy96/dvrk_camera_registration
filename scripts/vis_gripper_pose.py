@@ -94,13 +94,7 @@ class PoseAnnotator:
             points_3d, rvec, tvec, self.camera_matrix, self.dist_coeffs
         )
 
-        # print(points_2d)
-        # print(pose_data[idx])
-        # print(img.shape)
-
         points_2d = tuple(points_2d.astype(numpy.int32)[0, 0])
-
-        # print(points_2d)
 
         img = cv2.circle(img, points_2d, 10, (0, 0, 255), -1)
         img = self.draw_axis(img, self.camera_matrix, self.dist_coeffs, pose, size=0.01)
@@ -153,7 +147,7 @@ class PoseAnnotator:
 
 def run_pose_visualizer(
     ral: crtk.ral,
-    arm_handle: dvrk_camera_registration.PSM,
+    arm_handle: dvrk_camera_registration.ARM,
     camera_image_topic: str,
     camera_info_topic: str,
     cam_T_robot_base: numpy.ndarray,
@@ -198,12 +192,12 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-a",
-        "--arm",
+        "-p",
+        "--psm-name",
         type=str,
         required=True,
         choices=["PSM1", "PSM2", "PSM3"],
-        help="arm name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace",
+        help="PSM name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace",
     )
     parser.add_argument(
         "-H",
@@ -212,45 +206,20 @@ def main():
         required=True,
         help="hand-eye calibration matrix in JSON format using OpenCV coordinate system",
     )
-    individual_topics = parser.add_argument_group("Individual Topics",
-                                                  "Normal cases should use --camera-namespace (-n).  Use this only if the topic isn't in the conventional ROS namespace.")
-    individual_topics.add_argument(
-        "-c",
-        "--camera-image-topic",
-        type=str,
-        help="ROS topic of rectified color image transport"
-    )
-    individual_topics.add_argument(
-        "-t",
-        "--camera-info-topic",
-        type=str,
-        help="ROS topic of camera info for camera",
-    )
     parser.add_argument(
-        "-n",
+        "-c",
         "--camera-namespace",
         type=str,
+        required=True,
         help="ROS namespace for the camera",
     )
     args = parser.parse_args(argv)
 
-    camera_info_topic = ""
-    camera_image_topic = ""
-    if bool(args.camera_namespace):
-        camera_image_topic = args.camera_namespace + "/image_rect_color"
-        camera_info_topic = args.camera_namespace + "/camera_info"
-        if bool(args.camera_info_topic) or bool(args.camera_image_topic):
-            print("warning: --camera-image-topic and --camera-info-topic are ignored when --camera-namespace is set")
-    else:
-        if bool(args.camera_info_topic) and bool(args.camera_image_topic):
-            camera_image_topic = args.camera_image_topic
-            camera_info_topic = args.camera_info_topic
-        else:
-            parser.error('--camera-image-topic and --camera-info-topic are both required if --camera-namespace is not provided')
-
+    camera_image_topic = args.camera_namespace + "/image_rect_color"
+    camera_info_topic = args.camera_namespace + "/camera_info"
 
     ral = crtk.ral("vis_gripper_pose")
-    arm_handle = dvrk_camera_registration.PSM(ral, arm_name=args.arm, expected_interval=0.1)
+    arm_handle = dvrk_camera_registration.ARM(ral, arm_name=args.psm_name, expected_interval=0.1)
     ral.check_connections()
     cv2.setNumThreads(2)
     cam_T_robot_base = load_hand_eye_calibration(args.hand_eye_json)

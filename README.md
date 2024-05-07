@@ -15,7 +15,11 @@ The goal of this package is to perform an hand-eye calibration between a dVRK PS
   * The code will compute a convex hull based on the user provided poses
   * Let the code move the PSM around to collect data while not colliding with the environment
 * Optionally, validate the results
-* Copy/paste the resulting transformation to the dVRK console
+* Copy/paste the resulting transformation to the dVRK console or your suj-fixed.json
+
+There are two specific cases:
+* Fixed camera.  In this case, the registration transformation can be used in your console.json to define the `base-frame`
+* Camera held by and ECM.  In this case, you should have a console.json that uses an SUJ of type `SUJ_Fixed`.  The SUJ has a "kinematic" configuration file traditionally called `suj-fixed.json`.  The result of the registration will need to be copied/pasted in this file.
 
 # Steps
 
@@ -27,7 +31,7 @@ cd ~/catkin_ws/src
 catkin_create_pkg jhu_daVinci
 catkin build
 source ~/catkin_ws/devel/setup.bash # you have a new package, need to source
-``` 
+```
 
 ## Start the video
 
@@ -57,9 +61,9 @@ Start a dVRK console with the PSM you mean to register.
 
 ## Hand-eye calibration script
 
-To perform the hand-eye calibration first attach the calibration ArUco marker and run the `camera_registration.py` script. This script first asks the user to move a the PSM to create a convex hull in which it is safe to move and then move the robot automatically to collect data for the hand-eye calibration. 
+To perform the hand-eye calibration first attach the calibration ArUco marker and run the `camera_registration.py` script. This script first asks the user to move a the PSM to create a convex hull in which it is safe to move and then move the robot automatically to collect data for the hand-eye calibration.
 ```bash
-rosrun dvrk_camera_registration camera_registration.py -a PSM2 -m 0.01 -n /jhu_daVinci/left
+rosrun dvrk_camera_registration camera_registration.py -p PSM2 -m 0.01 -c /jhu_daVinci/left # -e ECM
 ```
 
 After collecting the data, the script will generate a couple of `.json` files with the transformation between the camera PSM and the camera.
@@ -68,10 +72,11 @@ After collecting the data, the script will generate a couple of `.json` files wi
 
 We also provide a  script that overlays the estimated pose of the PSM end-effector based on the telemetry.
 ```bash
-rosrun dvrk_camera_registration vis_gripper_pose.py -a PSM2 -n /jhu_daVinci/left -H PSM2_registration-open-cv.json
+rosrun dvrk_camera_registration vis_gripper_pose.py -p PSM2 -c /jhu_daVinci/left -H PSM2-registration-open-cv.json
 ```
 
-## Edit your `console.json`
+## Edit your dVRK configuration files
+
+TBD
 
 The registration scripts also creates a `PSM<x>_registration-dVRK.json` file that contains a transformation you can copy/paste in your dVRK `console.json` to define the PSM `base-frame`.
-

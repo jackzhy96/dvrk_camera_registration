@@ -19,40 +19,45 @@ import time
 import cv2
 import json
 import math
-import numpy as np
+import numpy
 from scipy.spatial.transform import Rotation
 
 import crtk
 from dvrk_camera_registration import Camera
-from dvrk_camera_registration import PSM
+from dvrk_camera_registration import ARM
 from dvrk_camera_registration import convex_hull
 from dvrk_camera_registration import vision_tracking
 
 
 class CameraRegistrationApplication:
-    def __init__(self, ral, arm_name, marker_size, expected_interval, camera):
+    def __init__(self, ral, psm_name, ecm_name, marker_size, expected_interval, camera):
         self.ral = ral
         self.camera = camera
         self.marker_size = marker_size
         self.expected_interval = expected_interval
-        self.arm = PSM(ral, arm_name=arm_name, expected_interval=expected_interval)
+        self.psm_name = psm_name
+        self.psm = ARM(ral, arm_name=psm_name, expected_interval=expected_interval)
+        if ecm_name != "":
+            self.ecm = ARM(ral, arm_name=ecm_name, expected_interval=expected_interval)
+        else:
+            self.ecm = None
         ral.check_connections()
 
-        print(f"measured_jp {self.arm.measured_jp()}")
+        print(f"measured_jp {self.psm.measured_jp()}")
         print("connections checked")
 
     def setup(self):
-        self.messages.info("Enabling {}...".format(self.arm.name))
-        if not self.arm.enable(5):
+        self.messages.info("Enabling {}...".format(self.psm.name))
+        if not self.psm.enable(5):
             self.messages.error(
-                "Failed to enable {} within 10 seconds".format(self.arm.name)
+                "Failed to enable {} within 10 seconds".format(self.psm.name)
             )
             return False
 
-        self.messages.info("Homing {}...".format(self.arm.name))
-        if not self.arm.home(10):
+        self.messages.info("Homing {}...".format(self.psm.name))
+        if not self.psm.home(10):
             self.messages.error(
-                "Failed to home {} within 10 seconds".format(self.arm.name)
+                "Failed to home {} within 10 seconds".format(self.psm.name)
             )
             return False
 
@@ -62,7 +67,7 @@ class CameraRegistrationApplication:
 
     def determine_safe_range_of_motion(self):
         self.messages.info(
-            "Release the clutch and move the arm around to establish the area the arm can move in.  It doesn't matter if the ArUco tag is visible!"
+            "Release the clutch and move the PSM around to establish the area the PSM can move in.  It doesn't matter if the ArUco tag is visible!"
         )
         self.messages.info("Press enter or 'd' when done")
 
@@ -70,14 +75,14 @@ class CameraRegistrationApplication:
             self.done = False
 
             while self.ok and not self.done:
-                pose = self.arm.measured_jp()
-                position = np.array([pose[0], pose[1], pose[2]])
+                pose = self.psm.measured_jp()
+                position = numpy.array([pose[0], pose[1], pose[2]])
 
                 # make list sparser by ensuring >2mm separation
-                euclidean = lambda x: np.array(
+                euclidean = lambda x: numpy.array(
                     [math.sin(x[0]) * x[2], math.sin(x[1]) * x[2], math.cos(x[2])]
                 )
-                distance = lambda a, b: np.linalg.norm(euclidean(a) - euclidean(b))
+                distance = lambda a, b: numpy.linalg.norm(euclidean(a) - euclidean(b))
                 if len(hull_points) == 0 or distance(position, hull_points[-1]) > 0.005:
                     hull_points.append(position)
 
@@ -104,7 +109,7 @@ class CameraRegistrationApplication:
         convex_hull.display_hull(hull)
         return self.ok, hull
 
-    # Make sure target is visible and arm is within range of motion
+    # Make sure target is visible and PSM is within range of motion
     def ensure_target_visible(self, safe_range):
         self.done = True  # run first check immeditately
         first_check = True
@@ -115,7 +120,7 @@ class CameraRegistrationApplication:
             if not self.done:
                 continue
 
-            jp = np.copy(self.arm.measured_jp())
+            jp = numpy.copy(self.psm.measured_jp())
             visible = self.tracker.is_target_visible(timeout=1)
             in_rom = convex_hull.in_hull(safe_range, jp)
 
@@ -123,7 +128,7 @@ class CameraRegistrationApplication:
                 self.done = False
                 if first_check:
                     self.messages.warn(
-                        "\nPlease position arm so ArUco target is visible, facing towards camera, and roughly centered within camera's view\n"
+                        "\nPlease position psm so ArUco target is visible, facing towards camera, and roughly centered within camera's view\n"
                     )
                     first_check = False
                 else:
@@ -134,7 +139,7 @@ class CameraRegistrationApplication:
             elif not in_rom:
                 self.done = False
                 self.messages.warn(
-                    "Arm is not within user supplied range of motion, please re-position"
+                    "PSM is not within user supplied range of motion, please re-position"
                 )
             else:
                 return True, jp
@@ -144,9 +149,9 @@ class CameraRegistrationApplication:
     # From starting position within view of camera, determine the camera's
     # field of view via exploration while staying within safe range of motion
     # Once field of view is found, collect additional pose samples
-    def collect_data(self, safe_range, start_jp, edge_samples=4):
-        current_jp = np.copy(start_jp)
-        current_jp[4:6] = np.zeros(2)
+    def collect_data(self, safe_range, start_jp, edge_samples=2):
+        current_jp = numpy.copy(start_jp)
+        current_jp[4:6] = numpy.zeros(2)
 
         target_poses = []
         robot_poses = []
@@ -159,7 +164,7 @@ class CameraRegistrationApplication:
                 self.messages.error("Safety limit reached!")
                 return False
 
-            self.arm.move_jp(joint_pose).wait()
+            self.psm.move_jp(joint_pose).wait()
             time.sleep(0.5)
 
             ok, target_pose = self.tracker.acquire_pose(timeout=4.0)
@@ -168,18 +173,18 @@ class CameraRegistrationApplication:
 
             target_poses.append(target_pose)
 
-            pose = self.arm.local.measured_cp().Inverse()
+            pose = self.psm.local.measured_cp().Inverse()
             rotation_quaternion = Rotation.from_quat(pose.M.GetQuaternion())
-            rotation = np.float64(rotation_quaternion.as_matrix())
-            translation = np.array([pose.p[0], pose.p[1], pose.p[2]], dtype=np.float64)
+            rotation = numpy.float64(rotation_quaternion.as_matrix())
+            translation = numpy.array([pose.p[0], pose.p[1], pose.p[2]], dtype=numpy.float64)
 
-            robot_poses.append((rotation, np.array(translation)))
+            robot_poses.append((rotation, numpy.array(translation)))
 
             return True
 
         def bisect_camera_view(pose, ray, min_steps=4, max_steps=6):
-            start_pose = np.copy(pose)
-            current_pose = np.copy(pose)
+            start_pose = numpy.copy(pose)
+            current_pose = numpy.copy(pose)
 
             far_limit = convex_hull.intersection(safe_range, start_pose[0:3], ray)
             near_limit = 0.0
@@ -208,7 +213,7 @@ class CameraRegistrationApplication:
 
             return end_point
 
-        def collect(poses, tool_shaft_rotation=math.pi / 10):
+        def collect(poses, tool_shaft_rotation=math.pi / 8.0):
             self.messages.progress(0.0)
             for i, pose in enumerate(poses):
                 if not self.ok or self.ral.is_shutdown():
@@ -236,7 +241,7 @@ class CameraRegistrationApplication:
         limits = []
 
         for axis in range(3):
-            ray = np.array([0, 0, 0])
+            ray = numpy.array([0, 0, 0])
             for direction in [1, -1]:
                 if not self.ok:
                     return None
@@ -251,10 +256,10 @@ class CameraRegistrationApplication:
         for i in range(len(limits)):
             start = i + 2 if i % 2 == 0 else i + 1
             for j in range(start, len(limits)):
-                for t in np.linspace(
+                for t in numpy.linspace(
                     1 / (edge_samples + 1), 1 - 1 / (edge_samples + 1), edge_samples
                 ):
-                    pose = np.copy(current_jp)
+                    pose = numpy.copy(current_jp)
                     pose[0:3] = limits[j] + t * (limits[i] - limits[j])
                     sample_poses.append(pose)
 
@@ -281,7 +286,7 @@ class CameraRegistrationApplication:
                 )
             )
 
-        distance = np.linalg.norm(translation)
+        distance = numpy.linalg.norm(translation)
         self.messages.info(
             "Measured distance from RCM to camera origin: {:.3f} m\n".format(distance)
         )
@@ -289,27 +294,49 @@ class CameraRegistrationApplication:
         return self.ok, rotation, translation
 
     def save_registration(self, rotation, translation, file_name, dvrk_format):
-        rotation = np.linalg.inv(rotation)
-        translation = -np.matmul(rotation, translation)
+        rotation = numpy.linalg.inv(rotation)
+        translation = -numpy.matmul(rotation, translation)
 
-        transform = np.eye(4)
+        transform = numpy.eye(4)
         transform[0:3, 0:3] = rotation
         transform[0:3, 3:4] = translation
 
         if dvrk_format:
-            to_dvrk = np.eye(4)
+            to_dvrk = numpy.eye(4)
             to_dvrk[0,0] = -to_dvrk[0,0]
             to_dvrk[1,1] = -to_dvrk[1,1]
             transform = to_dvrk @ transform
+            if self.ecm:
+                ecm_cp = self.ecm.local.measured_cp()
+                ecm_transform = numpy.eye(4)
+                for i in range(0, 3):
+                    ecm_transform[i, 3] = ecm_cp.p[i]
+                    for j in range(0, 3):
+                        ecm_transform[i, j] = ecm_cp.M[i, j]
+                transform = ecm_transform @ transform
 
-        base_frame = {
-            "reference-frame": self.tracker.get_camera_frame() or "camera",
-            "transform": transform.tolist(),
-        }
 
-        output = '"base-frame": {}'.format(json.dumps(base_frame))
-        if not dvrk_format:
-            output = '{' + output + '}'
+        if dvrk_format:
+            if self.ecm:
+                self.messages.info("The dVRK calibration needs to be copied/pasted to the suj-fixed.json")
+                data = {
+                    "name": self.psm_name,
+                    "measured_cp": transform.tolist(),
+                }
+                output = json.dumps(data)
+            else:
+                self.messages.info("The dVRK calibration needs to be copied/pasted to the console-xxx.json")
+                data = {
+                    "reference-frame": self.tracker.get_camera_frame() or "camera",
+                    "transform": transform.tolist(),
+                }
+                output = '"base-frame": {}'.format(json.dumps(data))
+        else:
+            data = {
+                "reference-frame": self.tracker.get_camera_frame() or "camera",
+                "transform": transform.tolist(),
+            }
+            output = '{\n' + '"base-frame": {}'.format(json.dumps(data)) + '\n}'
 
         with open(file_name, "w") as f:
             f.write(output)
@@ -377,16 +404,16 @@ class CameraRegistrationApplication:
             self.tracker.stop()
 
             self.save_registration(
-                rvec, tvec, "./{}_registration-open-cv.json".format(self.arm.name), False # using OpenCV frame coordinates
+                rvec, tvec, "./{}-registration-open-cv.json".format(self.psm.name), False # using OpenCV frame coordinates
             )
 
             self.save_registration(
-                rvec, tvec, "./{}_registration-dVRK.json".format(self.arm.name), True # using dVRK frame coordinates
+                rvec, tvec, "./{}-registration-dVRK.json".format(self.psm.name), True # using dVRK frame coordinates
             )
 
         finally:
             self.tracker.stop()
-            # self.arm.unregister()
+            # self.psm.unregister()
 
 
 def main():
@@ -396,12 +423,12 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-a",
-        "--arm",
+        "-p",
+        "--psm-name",
         type=str,
         required=True,
         choices=["PSM1", "PSM2", "PSM3"],
-        help="arm name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace",
+        help="PSM name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace",
     )
     parser.add_argument(
         "-m",
@@ -417,48 +444,30 @@ def main():
         default=0.1,
         help="expected interval in seconds between messages sent by the device",
     )
-    individual_topics = parser.add_argument_group("Individual Topics",
-                                                  "Normal cases should use --camera-namespace (-n).  Use this only if the topic isn't in the conventional ROS namespace.")
-    individual_topics.add_argument(
-        "-c",
-        "--camera-image-topic",
-        type=str,
-        help="ROS topic of rectified color image transport"
-    )
-    individual_topics.add_argument(
-        "-t",
-        "--camera-info-topic",
-        type=str,
-        help="ROS topic of camera info for camera",
-    )
     parser.add_argument(
-        "-n",
+        "-c",
         "--camera-namespace",
         type=str,
+        required=True,
         help="ROS namespace for the camera",
+    )
+    parser.add_argument(
+        "-e",
+        "--ecm-name",
+        type=str,
+        choices=["ECM"],
+        help="ECM name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace",
     )
     args = parser.parse_args(argv)
 
-    camera_info_topic = ""
-    camera_image_topic = ""
-    if bool(args.camera_namespace):
-        camera_image_topic = args.camera_namespace + "/image_rect_color"
-        camera_info_topic = args.camera_namespace + "/camera_info"
-        if bool(args.camera_info_topic) or bool(args.camera_image_topic):
-            print("warning: --camera-image-topic and --camera-info-topic are ignored when --camera-namespace is set")
-    else:
-        if bool(args.camera_info_topic) and bool(args.camera_image_topic):
-            camera_image_topic = args.camera_image_topic
-            camera_info_topic = args.camera_info_topic
-        else:
-            parser.error('--camera-image-topic and --camera-info-topic are both required if --camera-namespace is not provided')
+    camera_image_topic = args.camera_namespace + "/image_rect_color"
+    camera_info_topic = args.camera_namespace + "/camera_info"
 
-            
     ral = crtk.ral("dvrk_camera_calibration")
     camera = Camera(ral, camera_info_topic, camera_image_topic)
     application = CameraRegistrationApplication(
         ral,
-        args.arm, args.marker_size, args.interval, camera
+        args.psm_name, args.ecm_name, args.marker_size, args.interval, camera
     )
     application.run()
 
