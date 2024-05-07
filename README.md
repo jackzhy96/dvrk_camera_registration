@@ -3,15 +3,15 @@
 A ROS package to perform camera registration for the dVRK robot.
 
 **Setup notes**
-This script was tested on ROS noetic and the dVRK release 2.2.1.
+This script was tested on ROS noetic and the dVRK release 2.2.1+
 
 On Ubuntu 20.04 you might need to compile `gscam` (see notes in `dvrk_video` package: https://github.com/jhu-dvrk/dvrk_video). You might also have to install scipy with pip3 in your user directory using `pip3 install --user scipy==1.4.0`.
 
 # Introduction
 
-The goal of this package is to perform an hand-eye calibration between a dVRK PSM arm and the camera, ideally a stereo endoscope.  This can be specially useful for groups that don't have a full patient cart or a SUJ controller.
-
-Most of the dVRK groups have an original endoscope and CCUs from Intuitive Surgical Inc with SDI outputs so we will assume a stereo camera even though this hand-eye calibration uses only one channel (mono).  The registration uses a small ArUco marker mounted on the shaft of the instrument (you can find an STL model for the mount in the `assets` directory).  The ArUco marker can be removed once the registration is performed.  The overall steps are:
+The goal of this package is to perform an hand-eye calibration between a dVRK PSM arm and the camera, ideally a stereo endoscope.  This can be specially useful for groups that don't have a full patient cart or a SUJ controller.  This script will tell you where the PSM is located with respect to the camera or ECM.  This will allow you to use the teleoperation components provided along the dVRK stack.  This code can also be used instead of the SUJ since the accuracy can be higher than the SUJs (SUJs are within 5cm cube reporting PSMs wrt ECM, the camera registration script seems to achieve an accuracy closer to 5mm to 10mm cube).
+ 
+Most of the dVRK groups have an original endoscope and CCUs from Intuitive Surgical Inc with SDI outputs so we will assume a stereo camera even though this hand-eye calibration uses only one channel (mono).  The registration uses a small ArUco marker mounted on the shaft of the instrument (you can find an STL model for the mount in the `assets` directory as well as ArUco `.svg` files).  The ArUco marker can be removed once the registration is performed.  The overall steps are:
 * Calibrate the camera
 * Run the calibration script
   * Manually move the PSM to safe locations to define the boundaries of the search space
