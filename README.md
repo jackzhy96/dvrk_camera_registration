@@ -53,6 +53,8 @@ rosrun camera_calibration cameracalibrator.py --approximate 0.1 --size 12x10 --s
 ```
 The command line above assumes you're using a 12x10 calibration grid and the size of each square is 4.5mm.  Once the calibration is performed, don't forget to save and commit using the GUI.  You should now have two new files in the catkin package you created for the stereo rig under `calibrations`: `left.yaml` and `right.yaml`.
 
+You can find some calibration checkerboards ready to print in the `assets` directory.  Make sure the scale is correct after printing.  The simplest solution is to measure 10 consecutive squares and verify that it's 10 times the claimed square size in mm.  Also to note, the checkerboard size (e.g. 12x10) is based on the number of corners between the squares.  For example, the 12x10 actually has 13x11 squares.
+
 ## Restart the video using the calibration
 
 At that point, you need to stop the launch file used for the video acquisition and restart it with the `stereo_proc` parameter set to `True`.  This will add a ROS node to compute the rectified images and publish the camera parameters needed for the camera registration.
@@ -66,7 +68,9 @@ Start a dVRK console with the PSM you mean to register.  If you have an ECM and 
 
 ## Hand-eye calibration script
 
-To perform the hand-eye calibration first attach the calibration ArUco marker and run the `camera_registration.py` script. This script first asks the user to move a the PSM to create a convex hull in which it is safe to move and then move the robot automatically to collect data for the hand-eye calibration.
+To perform the hand-eye calibration, you need to attach the calibration ArUco marker to the PSM shaft, ideally about 70mm from the tip.  The exact position doesn't matter.  You can 3D print the ArUco mount provided in the `assets` directory to hold the ArUco marker.  You will need to tap the smaller hole and use a screw to push against the instrument's shaft.
+
+The `camera_registration.py` script first asks the user to move a the PSM to create a convex hull in which it is safe to move.  During this stage, the PSM should be powered and you can use the clutch button to free the arm.  Move the tip without worrying if the ArUco marker is visible and try to create the largest volume possible in front of the camera.  When you're done, place the PSM so the ArUco marker is facing the camera and is close to the center of the volume you just created.  The script will then move the robot automatically to collect data for the hand-eye calibration.  To run the script:
 ```bash
 rosrun dvrk_camera_registration camera_registration.py -p PSM2 -m 0.01 -c /jhu_daVinci/left
 ```
