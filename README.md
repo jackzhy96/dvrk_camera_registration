@@ -30,6 +30,8 @@ The camera registration script will automatically save the correct transformatio
 
 ## Create a catkin package
 
+### Stereo
+
 You will need to create a new package to store the calibration results.  At that point, choose a name for your camera (aka stereo rig).  For this example, we will use `jhu_daVinci`:
 ```bash
 cd ~/catkin_ws/src
@@ -38,14 +40,34 @@ catkin build
 source ~/catkin_ws/devel/setup.bash # you have a new package so you need to source again
 ```
 
+### Mono
+
+There is no difference but for sake of demonstration, we will create the package under a different name, say "depstech", a familiar brand of cheap USB cameras.
+```bash
+cd ~/catkin_ws/src
+catkin_create_pkg depstech
+catkin build
+source ~/catkin_ws/devel/setup.bash # you have a new package so you need to source again
+```
+
 ## Start the video
+
+### Stereo
 
 The following is based on dVRK provided launch files to capture the stereo video using Decklink SDI frame grabbers.  If your frame grabbers are different you will have to create your own launch files.  Note that you have to provide the name of your stereo rig:
 ```bash
 roslaunch dvrk_video stereo_decklink_1280x1024.launch stereo_rig_name:=jhu_daVinci
 ```
+### Mono
+
+The following example is based on a video4linux compatible source:
+```bash
+roslaunch dvrk_video gscam_v4l.launch camera_name:=depstech
+```
 
 ## Calibrate the camera
+
+### Stereo
 
 The calibration is performed using the ROS provided application, please refer to their documentation for the parameters (http://wiki.ros.org/camera_calibration).  You need to make sure the video stream is started and you are using the correct rig name.
 ```bash
@@ -55,11 +77,25 @@ The command line above assumes you're using a 12x10 calibration grid and the siz
 
 You can find some calibration checkerboards ready to print in the `assets` directory.  Make sure the scale is correct after printing.  The simplest solution is to measure 10 consecutive squares and verify that it's 10 times the claimed square size in mm.  Also to note, the checkerboard size (e.g. 12x10) is based on the number of corners between the squares.  For example, the 12x10 actually has 13x11 squares.
 
+### Mono
+
+The only difference is the parameters:
+```bash
+rosrun camera_calibration cameracalibrator.py --size 12x10 --square 0.0045 image:=/depstech/image_raw camera:=/depstech
+```
+
 ## Restart the video using the calibration
 
 At that point, you need to stop the launch file used for the video acquisition and restart it with the `stereo_proc` parameter set to `True`.  This will add a ROS node to compute the rectified images and publish the camera parameters needed for the camera registration.
+
+### Stereo
 ```bash
 roslaunch dvrk_video stereo_decklink_1280x1024.launch stereo_rig_name:=jhu_daVinci stereo_proc:=True
+```
+
+### Mono
+```bash
+roslaunch dvrk_video gscam_v4l_test.launch camera_name:=depstech mono_proc:=True
 ```
 
 ## Start the dVRK console
