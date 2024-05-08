@@ -84,7 +84,11 @@ class PoseAnnotator:
         print(self.dist_coeffs.shape)
 
     def draw_pose_on_img(self, img: numpy.ndarray, local_measured_cp: numpy.ndarray):
-        pose = self.cam_T_base @ local_measured_cp
+        offset = numpy.eye(4)
+        # offset[0, 3] = -0.008 # z dir
+        # offset[1, 3] =  0.005 # y dir
+        # offset[2, 3] = 0.008 # x dir
+        pose = self.cam_T_base @ local_measured_cp @ offset
 
         tvec = pose[:3, 3]
         rvec = cv2.Rodrigues(pose[:3, :3])[0]

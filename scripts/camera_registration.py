@@ -37,7 +37,7 @@ class CameraRegistrationApplication:
         self.expected_interval = expected_interval
         self.psm_name = psm_name
         self.psm = ARM(ral, arm_name=psm_name, expected_interval=expected_interval)
-        if ecm_name != "":
+        if ecm_name is not None:
             self.ecm = ARM(ral, arm_name=ecm_name, expected_interval=expected_interval)
         else:
             self.ecm = None
