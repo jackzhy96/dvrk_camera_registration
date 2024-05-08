@@ -37,7 +37,7 @@ class CameraRegistrationApplication:
         self.expected_interval = expected_interval
         self.psm_name = psm_name
         self.psm = ARM(ral, arm_name=psm_name, expected_interval=expected_interval)
-        if ecm_name != "":
+        if ecm_name is not None:
             self.ecm = ARM(ral, arm_name=ecm_name, expected_interval=expected_interval)
         else:
             self.ecm = None
@@ -318,14 +318,14 @@ class CameraRegistrationApplication:
 
         if dvrk_format:
             if self.ecm:
-                self.messages.info("The dVRK calibration needs to be copied/pasted to the suj-fixed.json")
+                self.messages.info("The dVRK calibration needs to be copy-pasted to the suj-fixed.json")
                 data = {
                     "name": self.psm_name,
                     "measured_cp": transform.tolist(),
                 }
                 output = json.dumps(data)
             else:
-                self.messages.info("The dVRK calibration needs to be copied/pasted to the console-xxx.json")
+                self.messages.info("The dVRK calibration needs to be copy-pasted to the console-xxx.json")
                 data = {
                     "reference-frame": self.tracker.get_camera_frame() or "camera",
                     "transform": transform.tolist(),
