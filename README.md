@@ -95,7 +95,7 @@ roslaunch dvrk_video stereo_decklink_1280x1024.launch stereo_rig_name:=jhu_daVin
 
 ### Mono
 ```bash
-roslaunch dvrk_video gscam_v4l_test.launch camera_name:=depstech mono_proc:=True
+roslaunch dvrk_video gscam_v4l.launch camera_name:=depstech mono_proc:=True
 ```
 
 ## Start the dVRK console
