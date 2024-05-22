@@ -13,7 +13,7 @@ The goal of this package is to perform an hand-eye calibration between a dVRK PS
  
 Most of the dVRK groups have an original endoscope and CCUs from Intuitive Surgical Inc with SDI outputs so we will assume a stereo camera even though this hand-eye calibration uses only one channel (mono).  The registration uses a small ArUco marker mounted on the shaft of the instrument (you can find an STL model for the mount in the `assets` directory as well as ArUco `.svg` files).  The ArUco marker can be removed once the registration is performed.  The overall steps are:
 * Calibrate the camera
-* Run the calibration script
+* Run the camera registration script
   * Manually move the PSM to safe locations to define the boundaries of the search space
   * The code will compute a convex hull based on the user provided poses
   * Let the code move the PSM around to collect data while not colliding with the environment
