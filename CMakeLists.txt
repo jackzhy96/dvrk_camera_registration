@@ -1,10 +1,30 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(dvrk_camera_registration)
+cmake_minimum_required (VERSION 3.10)
+project (dvrk_camera_registration VERSION 1.0.0)
 
-find_package(catkin REQUIRED COMPONENTS
-  rospy
-)
+# ROS 1
+find_package (
+  catkin QUIET
+  COMPONENTS rospy
+  )
 
-catkin_python_setup()
+if (catkin_FOUND)
 
-catkin_package()
+  catkin_python_setup ()
+  catkin_package ()
+
+else (catkin_FOUND)
+
+  # look for ROS2
+  find_package (ament_cmake QUIET)
+
+  if (ament_cmake_FOUND)
+    find_package (ament_cmake_python REQUIRED)
+    ament_python_install_package (dvrk_camera_registration
+      PACKAGE_DIR ${dvrk_camera_registration_SOURCE_DIR}/src/dvrk_camera_registration)
+    file (GLOB dvrk_SCRIPTS scripts/*.py)
+    install (PROGRAMS ${dvrk_SCRIPTS}
+      DESTINATION lib/${PROJECT_NAME})
+    ament_package ()
+  endif (ament_cmake_FOUND)
+
+endif (catkin_FOUND)
