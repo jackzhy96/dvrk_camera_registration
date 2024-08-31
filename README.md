@@ -6,7 +6,7 @@ A ROS package to perform camera registration for the dVRK robot.
 
 This script was tested on ROS noetic and dVRK release 2.2.1+
 
-On Ubuntu 20.04 you might need to compile `gscam` (see notes in `dvrk_video` package: https://github.com/jhu-dvrk/dvrk_video). You might also have to install scipy with pip3 in your user directory using `pip3 install --user scipy==1.4.0`.
+On Ubuntu 20.04 you might need to compile `gscam` in your own catkin workspace (see https://github.com/jhu-dvrk/sawIntuitiveResearchKit/wiki/Camera-Calibration). You might also have to install scipy with pip3 in your user directory using `pip3 install --user scipy==1.4.0`.
 
 # Introduction
 
