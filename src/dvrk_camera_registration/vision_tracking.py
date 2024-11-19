@@ -259,8 +259,9 @@ class VisionTracker:
         return padded_image
 
     # In background, run object tracking and display video
-    def start(self, enter_handler, quit_handler):
+    def start(self, done_handler, enter_handler, quit_handler):
         self.should_stop = False
+        self._done_handler = done_handler
         self._enter_handler = enter_handler
         self._quit_handler = quit_handler
         self._should_run_pose_acquisition = False
@@ -301,8 +302,10 @@ class VisionTracker:
                 escape = 27
                 if key == ord("q") or key == escape:
                     self._quit_handler()
-                elif key == ord("d") or key == ord("\n") or key == ord("\r"):
+                elif key == ord("\n") or key == ord("\r"):
                     self._enter_handler()
+                elif key == ord("d"):
+                    self._done_handler()
 
             self._close()
 
