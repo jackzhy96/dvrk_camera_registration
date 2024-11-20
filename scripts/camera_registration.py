@@ -16,10 +16,12 @@
 import argparse
 import sys
 import time
+import datetime
 import cv2
 import json
 import math
 import numpy
+import json
 from scipy.spatial.transform import Rotation
 
 import crtk
@@ -30,9 +32,11 @@ from dvrk_camera_registration import vision_tracking
 
 
 class CameraRegistrationApplication:
-    def __init__(self, ral, collection_mode, psm_name, ecm_name, marker_size, expected_interval, camera):
+    def __init__(self, ral, collection_mode, backup, psm_name, ecm_name, marker_size, expected_interval, camera, replay_file):
         self.ral = ral
         self.collection_mode = collection_mode
+        self.replay_file = replay_file
+        self.backup = backup
         self.camera = camera
         self.marker_size = marker_size
         self.expected_interval = expected_interval
@@ -248,6 +252,16 @@ class CameraRegistrationApplication:
                 for shaft_rotation in shaft_rotations:
                     pose[3] = pose3 + shaft_rotation
                     measure_pose(pose)
+
+        if self.backup:
+            jdata = { 'poses' : [] }
+            for pose in poses:
+                jdata['poses'].append(pose.tolist())
+            date = datetime.datetime.now().strftime('%Y-%m-%d@%H-%M')
+            filename = f'poses-{date}.json'
+            with open(filename, 'w') as f:
+                f.write(json.dumps(jdata))
+            self.messages.info(f'Poses saved in {filename}\n')
 
         self.messages.info('Collecting pose data...')
         collect(poses)
@@ -495,14 +509,15 @@ class CameraRegistrationApplication:
 
             self.messages.info('Setup finished')
 
-            self.messages.info('Moving to roll center\n')
-            measured_jp = self.psm.measured_jp()
-            measured_jp[3] = 0.0
-            self.psm.move_jp(measured_jp).wait()
-            self.messages.info('Loosen and rotate the aruco along the instrument shaft so it faces the camera\nPress "Enter" when done\n')
-            self.enter = False
-            while self.ok and not self.enter:
-                time.sleep(self.expected_interval)
+            if self.collection_mode != 'replay':
+                self.messages.info('Moving to roll center\n')
+                measured_jp = self.psm.measured_jp()
+                measured_jp[3] = 0.0
+                self.psm.move_jp(measured_jp).wait()
+                self.messages.info('Loosen and rotate the aruco along the instrument shaft so it faces the camera\nPress "Enter" when done\n')
+                self.enter = False
+                while self.ok and not self.enter:
+                    time.sleep(self.expected_interval)
 
             data = None
 
@@ -517,6 +532,15 @@ class CameraRegistrationApplication:
                 self.messages.info('Starting automatic poses collection')
                 poses = self.collect_poses_automatically()
                 self.messages.info('Collection data based on user trajectory')
+                data = self.collect_data(poses)
+
+            elif self.collection_mode == 'replay':
+                self.messages.info(f'Loading poses from file {self.replay_file.name}')
+                jdata = json.load(self.replay_file)
+                poses_list = jdata['poses']
+                poses = []
+                for pose in poses_list:
+                    poses.append(numpy.array(pose))
                 data = self.collect_data(poses)
 
             else:
@@ -600,16 +624,25 @@ def main():
         choices=['ECM'],
         help='ECM name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace',
     )
-
     parser.add_argument('--collection-mode',
                         '-M',
                         type=str,
                         required=True,
-                        choices=['manual', 'auto', 'safe'],
-                        help='manual: move to each pose and press enter\nauto: move around and the code will collect poses as the user moves\nsafe: user moves the arm around to define a safe volume to explore',
+                        choices=['manual', 'auto', 'safe', 'replay'],
+                        help='manual: move to each pose and press enter\nauto: move around and the code will collect poses as the user moves\nsafe: user moves the arm around to define a safe volume to explore\replay: replay poses saved using -b flag, requires -f',
     )
+    parser.add_argument('--backup',
+                        '-b',
+                        action = 'store_true',
+                        help = 'backup poses for later data analysis')
+    parser.add_argument('--replay-file',
+                        '-r',
+                        type = argparse.FileType('r'))
 
     args = parser.parse_args(argv)
+
+    if args.collection_mode == 'replay' and  args.replay_file is None:
+        sys.exit('The replay file has not been specified')
 
     camera_image_topic = args.camera_namespace + '/image_rect_color'
     camera_info_topic = args.camera_namespace + '/camera_info'
@@ -618,9 +651,14 @@ def main():
     camera = Camera(ral, camera_info_topic, camera_image_topic)
     application = CameraRegistrationApplication(
         ral,
-        args.collection_mode,
-        args.psm_name, args.ecm_name,
-        args.marker_size, args.interval, camera
+        collection_mode = args.collection_mode,
+        backup = args.backup,
+        psm_name = args.psm_name,
+        ecm_name = args.ecm_name,
+        marker_size = args.marker_size,
+        expected_interval = args.interval,
+        camera = camera,
+        replay_file = args.replay_file
     )
     application.run()
 
