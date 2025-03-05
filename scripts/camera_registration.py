@@ -75,7 +75,8 @@ class CameraRegistrationApplication:
             self.done = False
 
             while self.ok and not self.done:
-                pose = self.psm.measured_jp()
+                pose, _ = self.psm.measured_jp()
+                # print('pose is', pose)
                 position = numpy.array([pose[0], pose[1], pose[2]])
 
                 # make list sparser by ensuring >2mm separation
@@ -119,8 +120,8 @@ class CameraRegistrationApplication:
 
             if not self.done:
                 continue
-
-            jp = numpy.copy(self.psm.measured_jp())
+            current_jp, _ = self.psm.measured_jp()
+            jp = numpy.copy(current_jp)
             visible = self.tracker.is_target_visible(timeout=1)
             in_rom = convex_hull.in_hull(safe_range, jp)
 
@@ -172,8 +173,8 @@ class CameraRegistrationApplication:
                 return False
 
             target_poses.append(target_pose)
-
-            pose = self.psm.local.measured_cp().Inverse()
+            current_local_pose, _ = self.psm.local.measured_cp()
+            pose = current_local_pose.Inverse()
             rotation_quaternion = Rotation.from_quat(pose.M.GetQuaternion())
             rotation = numpy.float64(rotation_quaternion.as_matrix())
             translation = numpy.array([pose.p[0], pose.p[1], pose.p[2]], dtype=numpy.float64)
@@ -307,7 +308,7 @@ class CameraRegistrationApplication:
             to_dvrk[1,1] = -to_dvrk[1,1]
             transform = to_dvrk @ transform
             if self.ecm:
-                ecm_cp = self.ecm.local.measured_cp()
+                ecm_cp, _ = self.ecm.local.measured_cp()
                 ecm_transform = numpy.eye(4)
                 for i in range(0, 3):
                     ecm_transform[i, 3] = ecm_cp.p[i]

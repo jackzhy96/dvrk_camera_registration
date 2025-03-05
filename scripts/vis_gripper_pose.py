@@ -84,11 +84,7 @@ class PoseAnnotator:
         print(self.dist_coeffs.shape)
 
     def draw_pose_on_img(self, img: numpy.ndarray, local_measured_cp: numpy.ndarray):
-        offset = numpy.eye(4)
-        # offset[0, 3] = -0.008 # z dir
-        # offset[1, 3] =  0.005 # y dir
-        # offset[2, 3] = 0.008 # x dir
-        pose = self.cam_T_base @ local_measured_cp @ offset
+        pose = self.cam_T_base @ local_measured_cp
 
         tvec = pose[:3, 3]
         rvec = cv2.Rodrigues(pose[:3, :3])[0]
@@ -169,7 +165,8 @@ def run_pose_visualizer(
     while not ral.is_shutdown():
 
         img = img_subscriber.current_frame
-        local_measured_cp = tf_conversions.posemath.toMatrix(arm_handle.local.measured_cp())
+        current_local_cp, _ = arm_handle.local.measured_cp()
+        local_measured_cp = tf_conversions.posemath.toMatrix(current_local_cp)
 
         img = pose_annotator.draw_pose_on_img(img, local_measured_cp)
         cv2.imshow(window_name, img)
