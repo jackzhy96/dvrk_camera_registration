@@ -165,7 +165,7 @@ def run_pose_visualizer(
     while not ral.is_shutdown():
 
         img = img_subscriber.current_frame
-        local_measured_cp = tf_conversions.posemath.toMatrix(arm_handle.local.measured_cp()[0])
+        local_measured_cp = tf_conversions.posemath.toMatrix(arm_handle.local.measured_cp())
 
         img = pose_annotator.draw_pose_on_img(img, local_measured_cp)
         cv2.imshow(window_name, img)
